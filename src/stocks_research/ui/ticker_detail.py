@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 
+from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_news_trends, windowed_articles
@@ -23,9 +24,34 @@ else:
     history = repository.get_ticker_history(ticker)
     df = pd.DataFrame([vars(s) for s in history]).sort_values("date")
 
-    price_tab, indicators_tab, commentary_tab, news_tab = st.tabs(
-        ["Price & Volume", "Indicator History", "AI Commentary", "News Sentiment"]
+    overview_tab, price_tab, indicators_tab, commentary_tab, news_tab = st.tabs(
+        ["Company Overview", "Price & Volume", "Indicator History", "AI Commentary", "News Sentiment"]
     )
+
+    with overview_tab:
+        profile = CompanyProfileRepository().get_profile(ticker)
+
+        if profile is None:
+            st.info(
+                "No company profile yet for this ticker. Run the pipeline first: "
+                "`uv run python -m stocks_research.company.pipeline`"
+            )
+        else:
+            st.subheader(profile.name or ticker)
+            st.caption(" · ".join(filter(None, [profile.sector, profile.industry, profile.country])))
+
+            cols = st.columns(3)
+            cols[0].metric("Market Cap", f"${profile.market_cap:,}" if profile.market_cap else "N/A")
+            cols[1].metric("Employees", f"{profile.employees:,}" if profile.employees else "N/A")
+            cols[2].metric("Exchange", profile.exchange or "N/A")
+
+            if profile.website:
+                st.markdown(f"[{profile.website}]({profile.website})")
+
+            if profile.description:
+                st.write(profile.description)
+            else:
+                st.caption("No business description available for this ticker.")
 
     with price_tab:
         by_date = df.set_index("date")

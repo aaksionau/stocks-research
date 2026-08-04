@@ -21,8 +21,8 @@ A Streamlit app then reads that table to power three views:
 
 - **Overview** — all tickers for the latest run, filterable by ticker/trend/flagged
   status, sorted by score.
-- **Ticker Detail** — price/volume charts and full indicator + commentary history for
-  one ticker.
+- **Ticker Detail** — company overview, price/volume charts, full indicator + commentary
+  history, and news sentiment for one ticker.
 - **Trends** — which tickers have been flagged most often over a rolling window of days.
 
 ## Project layout
@@ -45,15 +45,20 @@ src/stocks_research/
 │   ├── sentiment.py            # Azure AI Foundry (gpt-4o-mini) headline sentiment scoring
 │   ├── repository.py          # Postgres schema + upsert/read queries for news articles
 │   └── trends.py               # rolling-window sentiment aggregation
+├── company/                   # company profile pipeline
+│   ├── pipeline.py            # orchestrates fetch -> persist for the ticker universe
+│   ├── data.py                 # yfinance company profile fetch (sector, industry, description, ...)
+│   └── repository.py          # Postgres schema + upsert/read queries for company profiles
 └── ui/                         # Streamlit app (Overview, Ticker Detail, Trends, News Trends)
 ```
 
-The market pipeline, news pipeline, and web UI are packaged as separate Docker images
-(`docker/pipeline.Dockerfile`, `docker/news-pipeline.Dockerfile`, `docker/web.Dockerfile`) with
-separate dependency extras and independent schedules -- news moves faster than end-of-day
-prices, so it runs on its own cadence rather than folding into the market pipeline. The
-always-on dashboard never needs market-data or LLM credentials, and neither batch job needs
-Streamlit.
+The market pipeline, news pipeline, company profile pipeline, and web UI are packaged as
+separate Docker images (`docker/pipeline.Dockerfile`, `docker/news-pipeline.Dockerfile`,
+`docker/company-pipeline.Dockerfile`, `docker/web.Dockerfile`) with separate dependency
+extras and independent schedules -- news moves faster than end-of-day prices, and company
+profiles change rarely, so each runs on its own cadence rather than folding into the market
+pipeline. The always-on dashboard never needs market-data or LLM credentials, and none of
+the batch jobs need Streamlit.
 
 ## Getting started
 
@@ -76,6 +81,13 @@ sentiment scoring uses the same `FOUNDRY_*` credentials as market commentary):
 
 ```bash
 uv run python -m stocks_research.news.pipeline
+```
+
+Fetch and persist company profiles (sector, industry, business description) for the
+ticker universe:
+
+```bash
+uv run python -m stocks_research.company.pipeline
 ```
 
 Launch the dashboard:
