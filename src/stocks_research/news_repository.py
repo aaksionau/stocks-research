@@ -43,19 +43,10 @@ class NewsRepository:
             conn.execute(CREATE_TABLE_SQL)
 
     def save_articles(self, articles: list[NewsArticle]) -> None:
-        with psycopg.connect(self._database_url) as conn:
-            for article in articles:
-                conn.execute(
-                    UPSERT_SQL,
-                    {
-                        "ticker": article.ticker,
-                        "url": article.url,
-                        "headline": article.headline,
-                        "summary": article.summary,
-                        "source": article.source,
-                        "published_at": article.published_at,
-                    },
-                )
+        if not articles:
+            return
+        with psycopg.connect(self._database_url) as conn, conn.cursor() as cursor:
+            cursor.executemany(UPSERT_SQL, [vars(article) for article in articles])
 
     def get_recent_articles(self, ticker: str, limit: int = 20) -> list[NewsArticle]:
         with psycopg.connect(self._database_url) as conn:

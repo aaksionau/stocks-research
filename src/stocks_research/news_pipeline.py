@@ -24,7 +24,6 @@ def run(news_client: NewsClient | None = None, repository: NewsRepository | None
     articles = news_client.fetch_news(NEWS_TICKERS, from_date, to_date)
 
     repository.save_articles(articles)
-    print(f"Saved {len(articles)} articles for {len(NEWS_TICKERS)} tickers")
     logger.info(
         "News fetch complete: saved %d articles for %d tickers", len(articles), len(NEWS_TICKERS)
     )
