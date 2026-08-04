@@ -59,6 +59,7 @@ else:
     event = st.dataframe(
         styled_df,
         width="stretch",
+        height=800,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
