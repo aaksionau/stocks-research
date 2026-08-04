@@ -5,6 +5,7 @@ from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_ticker_trend, windowed_articles
+from stocks_research.ui.theme import trend_badge
 
 st.title("Ticker Detail")
 
@@ -23,6 +24,27 @@ else:
 
     history = repository.get_ticker_history(ticker)
     df = pd.DataFrame([vars(s) for s in history]).sort_values("date")
+    latest = df.iloc[-1]
+
+    with st.container(border=True):
+        header_cols = st.columns([2, 1.2, 1, 1, 1])
+        with header_cols[0]:
+            st.markdown(f"### {ticker}")
+            trend_badge(latest["ma_trend"])
+            if latest["flagged"]:
+                st.badge("Flagged", icon=":material/flag:", color="orange")
+        header_cols[1].metric(
+            "Close",
+            f"${latest['close']:,.2f}",
+            delta=f"{latest['momentum_1d']:+.2f}%" if pd.notna(latest["momentum_1d"]) else None,
+        )
+        header_cols[2].metric(
+            "5D", f"{latest['momentum_5d']:+.2f}%" if pd.notna(latest["momentum_5d"]) else "N/A"
+        )
+        header_cols[3].metric(
+            "20D", f"{latest['momentum_20d']:+.2f}%" if pd.notna(latest["momentum_20d"]) else "N/A"
+        )
+        header_cols[4].metric("Score", f"{latest['score']:.2f}" if pd.notna(latest["score"]) else "N/A")
 
     overview_tab, price_tab, indicators_tab, commentary_tab, news_tab = st.tabs(
         ["Company Overview", "Price & Volume", "Indicator History", "AI Commentary", "News Sentiment"]
@@ -37,11 +59,20 @@ else:
                 "`uv run python -m stocks_research.company.pipeline`"
             )
         else:
+
+            def _format_market_cap(value: int | None) -> str:
+                if not value:
+                    return "N/A"
+                for threshold, suffix in ((1e12, "T"), (1e9, "B"), (1e6, "M")):
+                    if value >= threshold:
+                        return f"${value / threshold:,.2f}{suffix}"
+                return f"${value:,.0f}"
+
             st.subheader(profile.name or ticker)
             st.caption(" · ".join(filter(None, [profile.sector, profile.industry, profile.country])))
 
             cols = st.columns(3)
-            cols[0].metric("Market Cap", f"${profile.market_cap:,}" if profile.market_cap else "N/A")
+            cols[0].metric("Market Cap", _format_market_cap(profile.market_cap))
             cols[1].metric("Employees", f"{profile.employees:,}" if profile.employees else "N/A")
             cols[2].metric("Exchange", profile.exchange or "N/A")
 
@@ -63,9 +94,32 @@ else:
             df.sort_values("date", ascending=False),
             use_container_width=True,
             hide_index=True,
+            column_order=[
+                "date",
+                "close",
+                "flagged",
+                "score",
+                "ma_trend",
+                "momentum_1d",
+                "momentum_5d",
+                "momentum_20d",
+                "pct_above_ma50",
+                "volume",
+                "volume_ratio",
+                "commentary",
+            ],
             column_config={
+                "date": st.column_config.DateColumn("Date"),
+                "close": st.column_config.NumberColumn("Close", format="$%.2f"),
                 "flagged": st.column_config.CheckboxColumn("Flagged"),
                 "score": st.column_config.NumberColumn("Score", format="%.2f"),
+                "ma_trend": st.column_config.TextColumn("MA Trend"),
+                "momentum_1d": st.column_config.NumberColumn("1D %", format="%.2f"),
+                "momentum_5d": st.column_config.NumberColumn("5D %", format="%.2f"),
+                "momentum_20d": st.column_config.NumberColumn("20D %", format="%.2f"),
+                "pct_above_ma50": st.column_config.NumberColumn("Above MA50 %", format="%.2f"),
+                "volume": st.column_config.NumberColumn("Volume", format="%d"),
+                "volume_ratio": st.column_config.NumberColumn("Vol Ratio", format="%.2f"),
                 "commentary": st.column_config.TextColumn("AI Commentary", width="large"),
             },
         )
@@ -76,8 +130,9 @@ else:
             st.caption("No AI commentary recorded yet for this ticker.")
         else:
             for _, row in commentary_history.iterrows():
-                st.markdown(f"**{row['date']}**")
-                st.write(row["commentary"])
+                with st.container(border=True):
+                    st.caption(str(row["date"]))
+                    st.write(row["commentary"])
 
     with news_tab:
         articles = NewsRepository().get_scored_articles(ticker)
@@ -106,10 +161,11 @@ else:
                 st.info("No scored news in the selected window.")
             else:
                 summary = summarize_ticker_trend(window)
-                st.caption(
-                    f"{summary.article_count} article(s) across the last {news_days} day(s) of data -- "
-                    f"sentiment is {summary.sentiment_direction}."
-                )
+
+                summary_cols = st.columns(3)
+                summary_cols[0].metric("Articles", summary.article_count)
+                summary_cols[1].metric("Avg Sentiment", f"{summary.avg_sentiment:+.2f}")
+                summary_cols[2].metric("Direction", summary.sentiment_direction.title())
 
                 daily = pd.DataFrame(
                     [{"date": a.published_at.date(), "sentiment_score": a.sentiment_score} for a in window]

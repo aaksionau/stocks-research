@@ -11,6 +11,8 @@ snapshots = SnapshotRepository().get_all_snapshots()
 if not snapshots:
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
+    st.caption("Which tickers have been flagged most often over a recent window of days.")
+
     available_days = len({s.date for s in snapshots})
     if available_days <= 1:
         st.caption("Only one day of data so far -- the window slider needs at least two.")
@@ -30,11 +32,12 @@ else:
     else:
         df = pd.DataFrame([vars(t) for t in summaries])
 
-        st.caption(
-            f"{len(df)} ticker(s) flagged at least once across the last "
-            f"{summaries[0].days_considered} day(s) of data."
-        )
+        kpi_cols = st.columns(3)
+        kpi_cols[0].metric("Tickers Flagged", len(df))
+        kpi_cols[1].metric("Days Considered", summaries[0].days_considered)
+        kpi_cols[2].metric("Avg Score (flagged)", f"{df['avg_score'].mean():.2f}")
 
+        st.caption(f"Top tickers by how often they were flagged in the last {summaries[0].days_considered} day(s).")
         st.bar_chart(df.set_index("ticker")["flag_count"].head(20))
 
         st.dataframe(
