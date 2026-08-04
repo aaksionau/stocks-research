@@ -3,6 +3,9 @@ import streamlit as st
 from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
+from stocks_research.ui.theme import configure_app
+
+configure_app()
 
 
 @st.cache_resource
@@ -21,7 +24,7 @@ _ensure_schema()
 overview = st.Page("overview.py", title="Overview", icon="📊", default=True)
 ticker_detail = st.Page("ticker_detail.py", title="Ticker Detail", icon="🔍")
 trends = st.Page("trends.py", title="Trends", icon="📈")
+glossary = st.Page("glossary.py", title="Glossary", icon="📖")
 
-pg = st.navigation([overview, ticker_detail, trends], position="top")
-st.set_page_config(page_title="Stocks Research", layout="wide")
+pg = st.navigation([overview, ticker_detail, trends, glossary], position="top")
 pg.run()
