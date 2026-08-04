@@ -19,6 +19,7 @@ class NewsArticle:
     url: str
     source: str
     published_at: datetime
+    sentiment_score: float | None = None
 
 
 class NewsClient:
