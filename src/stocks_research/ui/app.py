@@ -1,5 +1,6 @@
 import streamlit as st
 
+from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 
@@ -12,6 +13,7 @@ def _ensure_schema() -> None:
     # hard-crash a page with UndefinedTable instead of showing "no data yet".
     SnapshotRepository().ensure_schema()
     NewsRepository().ensure_schema()
+    CompanyProfileRepository().ensure_schema()
 
 
 _ensure_schema()
@@ -19,8 +21,7 @@ _ensure_schema()
 overview = st.Page("overview.py", title="Overview", icon="📊", default=True)
 ticker_detail = st.Page("ticker_detail.py", title="Ticker Detail", icon="🔍")
 trends = st.Page("trends.py", title="Trends", icon="📈")
-news_trends = st.Page("news_trends.py", title="News Trends", icon="📰")
 
-pg = st.navigation([overview, ticker_detail, trends, news_trends], position="top")
+pg = st.navigation([overview, ticker_detail, trends], position="top")
 st.set_page_config(page_title="Stocks Research", layout="wide")
 pg.run()
