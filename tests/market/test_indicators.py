@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from stocks_research.indicators import IndicatorEngine
+from stocks_research.market.indicators import IndicatorEngine
 
 engine = IndicatorEngine()
 

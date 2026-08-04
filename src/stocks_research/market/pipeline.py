@@ -1,12 +1,12 @@
 import logging
 from dataclasses import replace
 
-from stocks_research.commentary import CommentaryClient
 from stocks_research.config import TICKERS
-from stocks_research.flagging import Flagger
-from stocks_research.indicators import IndicatorEngine
-from stocks_research.market_data import MarketDataClient
-from stocks_research.repository import SnapshotRepository
+from stocks_research.market.commentary import CommentaryClient
+from stocks_research.market.data import MarketDataClient
+from stocks_research.market.flagging import Flagger
+from stocks_research.market.indicators import IndicatorEngine
+from stocks_research.market.repository import SnapshotRepository
 
 logger = logging.getLogger(__name__)
 

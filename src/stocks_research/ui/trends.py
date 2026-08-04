@@ -1,15 +1,15 @@
 import pandas as pd
 import streamlit as st
 
-from stocks_research.repository import SnapshotRepository
-from stocks_research.trends import DEFAULT_WINDOW_DAYS, summarize_trends
+from stocks_research.market.repository import SnapshotRepository
+from stocks_research.market.trends import DEFAULT_WINDOW_DAYS, summarize_trends
 
 st.title("Trends Over Time")
 
 snapshots = SnapshotRepository().get_all_snapshots()
 
 if not snapshots:
-    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.pipeline`")
+    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
     available_days = len({s.date for s in snapshots})
     if available_days <= 1:

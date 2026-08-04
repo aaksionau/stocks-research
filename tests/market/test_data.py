@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from stocks_research.market_data import MarketDataClient
+from stocks_research.market.data import MarketDataClient
 
 
 class FakeYfTicker:
@@ -18,7 +18,7 @@ class FakeYfTicker:
 
 @pytest.fixture(autouse=True)
 def patch_yf_ticker(monkeypatch):
-    monkeypatch.setattr("stocks_research.market_data.yf.Ticker", FakeYfTicker)
+    monkeypatch.setattr("stocks_research.market.data.yf.Ticker", FakeYfTicker)
 
 
 def test_failed_ticker_fetch_is_skipped_not_fatal():

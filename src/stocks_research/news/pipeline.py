@@ -2,8 +2,8 @@ import logging
 from datetime import date, timedelta
 
 from stocks_research.config import NEWS_TICKERS
-from stocks_research.news_data import NewsClient
-from stocks_research.news_repository import NewsRepository
+from stocks_research.news.data import NewsClient
+from stocks_research.news.repository import NewsRepository
 
 logger = logging.getLogger(__name__)
 

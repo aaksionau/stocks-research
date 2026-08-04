@@ -1,7 +1,7 @@
 from openai import AzureOpenAI
 
 from stocks_research.config import FOUNDRY_API_KEY, FOUNDRY_API_VERSION, FOUNDRY_DEPLOYMENT, FOUNDRY_ENDPOINT
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.indicators import IndicatorSnapshot
 
 SYSTEM_PROMPT = (
     "You are a market data analyst producing short notes on daily stock movement. "

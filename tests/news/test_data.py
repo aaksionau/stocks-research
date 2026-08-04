@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from stocks_research.news_data import NewsClient
+from stocks_research.news.data import NewsClient
 
 
 class FakeResponse:
@@ -59,7 +59,7 @@ def fake_get(url: str, params: dict, timeout: int):
 
 @pytest.fixture(autouse=True)
 def patch_requests_get(monkeypatch):
-    monkeypatch.setattr("stocks_research.news_data.requests.get", fake_get)
+    monkeypatch.setattr("stocks_research.news.data.requests.get", fake_get)
 
 
 def test_fetch_news_returns_articles_for_ticker():

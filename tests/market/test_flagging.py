@@ -1,7 +1,7 @@
 from datetime import date
 
-from stocks_research.flagging import FLAG_COUNT, Flagger
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.flagging import FLAG_COUNT, Flagger
+from stocks_research.market.indicators import IndicatorSnapshot
 
 flagger = Flagger()
 

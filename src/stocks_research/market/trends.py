@@ -2,7 +2,7 @@ import statistics
 from dataclasses import dataclass
 from datetime import date
 
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.indicators import IndicatorSnapshot
 
 DEFAULT_WINDOW_DAYS = 30
 

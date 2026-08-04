@@ -1,14 +1,14 @@
 import pandas as pd
 import streamlit as st
 
-from stocks_research.repository import SnapshotRepository
+from stocks_research.market.repository import SnapshotRepository
 
 st.title("Overview")
 
 snapshots = SnapshotRepository().get_latest_snapshots()
 
 if not snapshots:
-    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.pipeline`")
+    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
     df = pd.DataFrame([vars(s) for s in snapshots]).sort_values("ticker")
 

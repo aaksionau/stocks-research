@@ -1,7 +1,7 @@
 import psycopg
 
 from stocks_research.config import DATABASE_URL
-from stocks_research.news_data import NewsArticle
+from stocks_research.news.data import NewsArticle
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS news_articles (

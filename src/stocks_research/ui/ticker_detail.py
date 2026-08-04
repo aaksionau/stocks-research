@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from stocks_research.repository import SnapshotRepository
+from stocks_research.market.repository import SnapshotRepository
 
 st.title("Ticker Detail")
 
@@ -9,7 +9,7 @@ repository = SnapshotRepository()
 tickers = sorted(s.ticker for s in repository.get_latest_snapshots())
 
 if not tickers:
-    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.pipeline`")
+    st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
     preselected = st.session_state.get("selected_ticker") or st.query_params.get("ticker")
     default_index = tickers.index(preselected) if preselected in tickers else 0

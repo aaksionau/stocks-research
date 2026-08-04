@@ -14,4 +14,4 @@ RUN uv sync --frozen --no-dev --extra pipeline
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["python", "-m", "stocks_research.pipeline"]
+CMD ["python", "-m", "stocks_research.market.pipeline"]

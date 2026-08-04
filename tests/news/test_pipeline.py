@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 
-from stocks_research import news_pipeline
-from stocks_research.news_data import NewsArticle
+from stocks_research.news import pipeline as news_pipeline
+from stocks_research.news.data import NewsArticle
 
 
 def make_article(ticker: str) -> NewsArticle:
