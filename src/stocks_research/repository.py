@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS indicator_snapshots (
     volume_ratio numeric,
     score numeric,
     flagged boolean NOT NULL DEFAULT false,
+    commentary text,
     PRIMARY KEY (ticker, date)
 )
 """
@@ -27,18 +28,19 @@ CREATE TABLE IF NOT EXISTS indicator_snapshots (
 ALTER_TABLE_SQL = """
 ALTER TABLE indicator_snapshots
     ADD COLUMN IF NOT EXISTS score numeric,
-    ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false
+    ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS commentary text
 """
 
 UPSERT_SQL = """
 INSERT INTO indicator_snapshots (
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged
+    score, flagged, commentary
 ) VALUES (
     %(ticker)s, %(date)s, %(close)s, %(momentum_1d)s, %(momentum_5d)s, %(momentum_20d)s,
     %(ma_50)s, %(ma_200)s, %(ma_trend)s, %(pct_above_ma50)s, %(volume)s, %(volume_avg_20)s, %(volume_ratio)s,
-    %(score)s, %(flagged)s
+    %(score)s, %(flagged)s, %(commentary)s
 )
 ON CONFLICT (ticker, date) DO UPDATE SET
     close = EXCLUDED.close,
@@ -53,14 +55,15 @@ ON CONFLICT (ticker, date) DO UPDATE SET
     volume_avg_20 = EXCLUDED.volume_avg_20,
     volume_ratio = EXCLUDED.volume_ratio,
     score = EXCLUDED.score,
-    flagged = EXCLUDED.flagged
+    flagged = EXCLUDED.flagged,
+    commentary = EXCLUDED.commentary
 """
 
 LATEST_SNAPSHOTS_SQL = """
 SELECT DISTINCT ON (ticker)
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged
+    score, flagged, commentary
 FROM indicator_snapshots
 ORDER BY ticker, date DESC
 """
@@ -89,7 +92,7 @@ class SnapshotRepository:
         (
             ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
             ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-            score, flagged,
+            score, flagged, commentary,
         ) = row
         as_float = lambda value: None if value is None else float(value)
         return IndicatorSnapshot(
@@ -108,4 +111,5 @@ class SnapshotRepository:
             volume_ratio=as_float(volume_ratio),
             score=as_float(score),
             flagged=bool(flagged),
+            commentary=commentary,
         )

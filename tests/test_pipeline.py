@@ -43,6 +43,18 @@ class FakeIndicatorEngine:
         return make_snapshot(ticker)
 
 
+class FakeCommentaryClient:
+    def __init__(self, failing_tickers: set[str] = frozenset()):
+        self._failing_tickers = failing_tickers
+        self.calls: list[str] = []
+
+    def generate_commentary(self, ticker: str, snapshot: IndicatorSnapshot) -> str:
+        self.calls.append(ticker)
+        if ticker in self._failing_tickers:
+            raise ValueError(f"Foundry unreachable for {ticker}")
+        return f"commentary for {ticker}"
+
+
 class FakeSnapshotRepository:
     def __init__(self, fail_on_save: bool = False):
         self._fail_on_save = fail_on_save
@@ -65,6 +77,7 @@ def test_per_ticker_indicator_failure_is_skipped_not_fatal():
     pipeline.run(
         market_data=FakeMarketDataClient(histories),
         engine=FakeIndicatorEngine(failing_tickers={"BADCO"}),
+        commentary_client=FakeCommentaryClient(),
         repository=repository,
     )
 
@@ -78,6 +91,7 @@ def test_no_price_history_at_all_raises_pipeline_failed_error():
         pipeline.run(
             market_data=FakeMarketDataClient({}),
             engine=FakeIndicatorEngine(),
+            commentary_client=FakeCommentaryClient(),
             repository=repository,
         )
 
@@ -90,5 +104,61 @@ def test_repository_failure_propagates_and_aborts_run():
         pipeline.run(
             market_data=FakeMarketDataClient(histories),
             engine=FakeIndicatorEngine(),
+            commentary_client=FakeCommentaryClient(),
             repository=repository,
         )
+
+
+def test_flagged_tickers_get_commentary_persisted_on_snapshot():
+    histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
+    repository = FakeSnapshotRepository()
+    commentary_client = FakeCommentaryClient()
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(),
+        commentary_client=commentary_client,
+        repository=repository,
+    )
+
+    saved_by_ticker = {s.ticker: s for s in repository.saved}
+    assert saved_by_ticker["AAPL"].flagged is True
+    assert saved_by_ticker["AAPL"].commentary == "commentary for AAPL"
+    assert saved_by_ticker["MSFT"].commentary == "commentary for MSFT"
+
+
+def test_commentary_failure_is_skipped_not_fatal():
+    histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
+    repository = FakeSnapshotRepository()
+    commentary_client = FakeCommentaryClient(failing_tickers={"AAPL"})
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(),
+        commentary_client=commentary_client,
+        repository=repository,
+    )
+
+    saved_by_ticker = {s.ticker: s for s in repository.saved}
+    assert saved_by_ticker["AAPL"].flagged is True
+    assert saved_by_ticker["AAPL"].commentary is None
+    assert saved_by_ticker["MSFT"].commentary == "commentary for MSFT"
+
+
+def test_unflagged_tickers_are_not_sent_for_commentary():
+    histories = {f"T{i}": pd.DataFrame() for i in range(35)}
+    repository = FakeSnapshotRepository()
+    commentary_client = FakeCommentaryClient()
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(),
+        commentary_client=commentary_client,
+        repository=repository,
+    )
+
+    flagged = [s for s in repository.saved if s.flagged]
+    unflagged = [s for s in repository.saved if not s.flagged]
+    assert unflagged, "expected some tickers to be unflagged with 35 candidates and a top-30 cutoff"
+    assert set(commentary_client.calls) == {s.ticker for s in flagged}
+    assert all(s.commentary is None for s in unflagged)

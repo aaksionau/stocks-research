@@ -26,6 +26,7 @@ class IndicatorSnapshot:
     volume_ratio: float | None
     score: float | None = None
     flagged: bool = False
+    commentary: str | None = None
 
 
 class IndicatorEngine:

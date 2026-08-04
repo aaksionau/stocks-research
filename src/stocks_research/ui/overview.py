@@ -36,5 +36,6 @@ else:
         column_config={
             "flagged": st.column_config.CheckboxColumn("Flagged"),
             "score": st.column_config.NumberColumn("Score", format="%.2f"),
+            "commentary": st.column_config.TextColumn("AI Commentary", width="large"),
         },
     )
