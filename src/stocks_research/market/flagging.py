@@ -1,7 +1,7 @@
 import statistics
 from dataclasses import dataclass
 
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.indicators import IndicatorSnapshot
 
 FLAG_COUNT = 30
 

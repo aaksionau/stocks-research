@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from stocks_research.commentary import CommentaryClient
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.commentary import CommentaryClient
+from stocks_research.market.indicators import IndicatorSnapshot
 
 
 def make_snapshot(**overrides) -> IndicatorSnapshot:
@@ -65,7 +65,7 @@ class FakeAzureOpenAI:
 def patch_azure_openai(monkeypatch):
     fake_client = FakeAzureOpenAI()
     monkeypatch.setattr(
-        "stocks_research.commentary.AzureOpenAI", lambda **kwargs: fake_client
+        "stocks_research.market.commentary.AzureOpenAI", lambda **kwargs: fake_client
     )
     return fake_client
 

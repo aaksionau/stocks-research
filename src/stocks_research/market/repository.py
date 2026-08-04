@@ -1,7 +1,7 @@
 import psycopg
 
 from stocks_research.config import DATABASE_URL
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market.indicators import IndicatorSnapshot
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS indicator_snapshots (

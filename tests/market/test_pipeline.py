@@ -3,8 +3,8 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from stocks_research import pipeline
-from stocks_research.indicators import IndicatorSnapshot
+from stocks_research.market import pipeline
+from stocks_research.market.indicators import IndicatorSnapshot
 
 
 def make_snapshot(ticker: str) -> IndicatorSnapshot:

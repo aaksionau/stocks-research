@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
-from stocks_research.indicators import IndicatorSnapshot
-from stocks_research.trends import summarize_trends
+from stocks_research.market.indicators import IndicatorSnapshot
+from stocks_research.market.trends import summarize_trends
 
 BASE_DATE = date(2020, 1, 1)
 

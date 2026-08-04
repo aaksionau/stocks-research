@@ -29,19 +29,21 @@ A Streamlit app then reads that table to power three views:
 
 ```
 src/stocks_research/
-├── pipeline.py              # orchestrates fetch -> compute -> flag -> commentary -> persist
-├── market_data.py           # yfinance price history fetch
-├── indicators.py            # momentum / moving-average / volume indicator math
-├── flagging.py               # z-score composite ranking -> top-N flagged tickers
-├── commentary.py            # Azure AI Foundry (gpt-4o-mini) descriptive commentary
-├── repository.py            # Postgres schema + upsert/read queries
-├── trends.py                 # rolling-window flag-frequency summaries
-├── news_pipeline.py          # fetch -> persist entrypoint for the news watchlist
-├── news_data.py               # Finnhub company-news fetch
-├── news_repository.py        # Postgres schema + upsert/read queries for news articles
-├── config.py                 # env-driven configuration
-├── sp500_constituents.py    # the ticker universe
-└── ui/                        # Streamlit app (Overview, Ticker Detail, Trends)
+├── config.py                  # env-driven configuration
+├── market/                    # price/indicator pipeline
+│   ├── pipeline.py            # orchestrates fetch -> compute -> flag -> commentary -> persist
+│   ├── data.py                 # yfinance price history fetch
+│   ├── indicators.py          # momentum / moving-average / volume indicator math
+│   ├── flagging.py            # z-score composite ranking -> top-N flagged tickers
+│   ├── commentary.py          # Azure AI Foundry (gpt-4o-mini) descriptive commentary
+│   ├── repository.py          # Postgres schema + upsert/read queries
+│   ├── trends.py              # rolling-window flag-frequency summaries
+│   └── sp500_constituents.py  # the ticker universe
+├── news/                      # news pipeline
+│   ├── pipeline.py            # fetch -> persist entrypoint for the news watchlist
+│   ├── data.py                 # Finnhub company-news fetch
+│   └── repository.py          # Postgres schema + upsert/read queries for news articles
+└── ui/                         # Streamlit app (Overview, Ticker Detail, Trends)
 ```
 
 The pipeline and web UI are packaged as separate Docker images (`docker/pipeline.Dockerfile`,
@@ -61,13 +63,13 @@ docker compose -f docker/docker-compose.yml up -d   # starts Postgres on localho
 Run the pipeline once to populate data:
 
 ```bash
-uv run python -m stocks_research.pipeline
+uv run python -m stocks_research.market.pipeline
 ```
 
 Fetch and persist raw news for the configured watchlist (requires `FINNHUB_API_KEY`):
 
 ```bash
-uv run python -m stocks_research.news_pipeline
+uv run python -m stocks_research.news.pipeline
 ```
 
 Launch the dashboard:

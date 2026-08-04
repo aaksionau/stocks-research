@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from stocks_research.sp500_constituents import SP500_TICKERS
+from stocks_research.market.sp500_constituents import SP500_TICKERS
 
 load_dotenv()
 
