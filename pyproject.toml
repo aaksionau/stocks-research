@@ -12,8 +12,8 @@ dependencies = [
 ]
 
 # Split so the pipeline and web UI Docker images each install only what they
-# need (see Dockerfile.pipeline / Dockerfile.web) -- the pipeline never
-# needs streamlit, the web UI never needs yfinance/openai.
+# need (see docker/pipeline.Dockerfile / docker/web.Dockerfile) -- the pipeline
+# never needs streamlit, the web UI never needs yfinance/openai.
 [project.optional-dependencies]
 pipeline = [
     "openai>=2.53.0",
