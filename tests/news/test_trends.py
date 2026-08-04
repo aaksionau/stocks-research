@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from stocks_research.news.data import NewsArticle
 from stocks_research.news.trends import summarize_news_trends
 
@@ -62,51 +64,24 @@ def test_avg_sentiment_is_computed_correctly():
     assert ranked[0].avg_sentiment == 0.4
 
 
-def test_sentiment_direction_is_rising_when_second_half_more_positive():
+@pytest.mark.parametrize(
+    "scores, expected_direction",
+    [
+        ([-0.5, -0.4, 0.4, 0.5], "rising"),
+        ([0.5, 0.4, -0.4, -0.5], "falling"),
+        ([0.1, 0.12, 0.09, 0.11], "flat"),
+        ([0.9], "flat"),
+    ],
+)
+def test_sentiment_direction(scores, expected_direction):
     articles = [
-        build_article("TICKER", day_offset=0, sentiment_score=-0.5),
-        build_article("TICKER", day_offset=1, sentiment_score=-0.4),
-        build_article("TICKER", day_offset=2, sentiment_score=0.4),
-        build_article("TICKER", day_offset=3, sentiment_score=0.5),
+        build_article("TICKER", day_offset=i, sentiment_score=score)
+        for i, score in enumerate(scores)
     ]
 
     ranked = summarize_news_trends(articles, days=30)
 
-    assert ranked[0].sentiment_direction == "rising"
-
-
-def test_sentiment_direction_is_falling_when_second_half_more_negative():
-    articles = [
-        build_article("TICKER", day_offset=0, sentiment_score=0.5),
-        build_article("TICKER", day_offset=1, sentiment_score=0.4),
-        build_article("TICKER", day_offset=2, sentiment_score=-0.4),
-        build_article("TICKER", day_offset=3, sentiment_score=-0.5),
-    ]
-
-    ranked = summarize_news_trends(articles, days=30)
-
-    assert ranked[0].sentiment_direction == "falling"
-
-
-def test_sentiment_direction_is_flat_when_sentiment_is_stable():
-    articles = [
-        build_article("TICKER", day_offset=0, sentiment_score=0.1),
-        build_article("TICKER", day_offset=1, sentiment_score=0.12),
-        build_article("TICKER", day_offset=2, sentiment_score=0.09),
-        build_article("TICKER", day_offset=3, sentiment_score=0.11),
-    ]
-
-    ranked = summarize_news_trends(articles, days=30)
-
-    assert ranked[0].sentiment_direction == "flat"
-
-
-def test_sentiment_direction_is_flat_for_a_single_article():
-    articles = [build_article("TICKER", day_offset=0, sentiment_score=0.9)]
-
-    ranked = summarize_news_trends(articles, days=30)
-
-    assert ranked[0].sentiment_direction == "flat"
+    assert ranked[0].sentiment_direction == expected_direction
 
 
 def test_window_is_anchored_to_most_recent_seeded_date_not_real_time():

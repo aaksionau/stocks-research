@@ -26,38 +26,40 @@ def summarize_news_trends(
     today's calendar date, mirroring `market.trends.summarize_trends()` so this is
     verifiable against seeded historical dates without real time passing.
     """
-    scored = [a for a in articles if a.sentiment_score is not None]
+    scored = [(a.published_at.date(), a) for a in articles if a.sentiment_score is not None]
 
-    distinct_dates = sorted({a.published_at.date() for a in scored}, reverse=True)[:days]
+    distinct_dates = sorted({d for d, _ in scored}, reverse=True)[:days]
     if not distinct_dates:
         return []
 
-    window = set(distinct_dates)
+    cutoff = distinct_dates[-1]
     by_ticker: dict[str, list[NewsArticle]] = {}
-    for article in scored:
-        if article.published_at.date() in window:
+    for published_date, article in scored:
+        if published_date >= cutoff:
             by_ticker.setdefault(article.ticker, []).append(article)
 
-    summaries = [
-        NewsSentimentTrend(
-            ticker=ticker,
-            article_count=len(entries),
-            avg_sentiment=statistics.mean(a.sentiment_score for a in entries),
-            sentiment_direction=_sentiment_direction(entries),
-            last_published_date=max(a.published_at.date() for a in entries),
-        )
-        for ticker, entries in by_ticker.items()
-    ]
-
-    return sorted(summaries, key=lambda t: (t.avg_sentiment, t.article_count), reverse=True)
+    return sorted(
+        (
+            NewsSentimentTrend(
+                ticker=ticker,
+                article_count=len(entries),
+                avg_sentiment=statistics.mean(a.sentiment_score for a in entries),
+                sentiment_direction=_sentiment_direction(entries),
+                last_published_date=max(a.published_at.date() for a in entries),
+            )
+            for ticker, entries in by_ticker.items()
+        ),
+        key=lambda t: (t.avg_sentiment, t.article_count),
+        reverse=True,
+    )
 
 
 def _sentiment_direction(entries: list[NewsArticle]) -> str:
-    ordered = sorted(entries, key=lambda a: a.published_at)
-    midpoint = len(ordered) // 2
-    if midpoint == 0:
+    if len(entries) < 2:
         return "flat"
 
+    ordered = sorted(entries, key=lambda a: a.published_at)
+    midpoint = len(ordered) // 2
     first_half_avg = statistics.mean(a.sentiment_score for a in ordered[:midpoint])
     second_half_avg = statistics.mean(a.sentiment_score for a in ordered[midpoint:])
     delta = second_half_avg - first_half_avg
