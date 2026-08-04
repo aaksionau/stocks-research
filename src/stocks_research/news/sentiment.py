@@ -37,7 +37,7 @@ class NewsSentimentClient:
                 {"role": "user", "content": self._describe(ticker, headlines)},
             ],
         )
-        content = response.choices[0].message.content.strip()
+        content = self._strip_code_fence(response.choices[0].message.content.strip())
 
         try:
             scores = json.loads(content)
@@ -54,3 +54,12 @@ class NewsSentimentClient:
     def _describe(ticker: str, headlines: list[str]) -> str:
         numbered = "\n".join(f"{i}. {headline}" for i, headline in enumerate(headlines, start=1))
         return f"Ticker: {ticker}\nHeadlines:\n{numbered}"
+
+    @staticmethod
+    def _strip_code_fence(content: str) -> str:
+        # gpt-4o-mini sometimes wraps the JSON in a markdown code fence despite
+        # being told not to -- strip it rather than failing the whole batch.
+        if not content.startswith("```"):
+            return content
+        content = content.removeprefix("```json").removeprefix("```")
+        return content.removesuffix("```").strip()

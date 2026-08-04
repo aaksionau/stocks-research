@@ -81,6 +81,15 @@ def test_score_headlines_with_no_headlines_makes_no_call(patch_azure_openai):
     assert patch_azure_openai.chat.completions.calls == []
 
 
+def test_score_headlines_strips_markdown_code_fence(monkeypatch):
+    patch_azure_openai_content(monkeypatch, "```json\n[0.5, -0.2]\n```")
+    client = NewsSentimentClient(api_key="key", endpoint="https://example.com")
+
+    scores = client.score_headlines("AAPL", ["Good news", "Bad news"])
+
+    assert scores == [0.5, -0.2]
+
+
 def test_score_headlines_raises_on_non_json_response(monkeypatch):
     patch_azure_openai_content(monkeypatch, "not json")
     client = NewsSentimentClient(api_key="key", endpoint="https://example.com")
