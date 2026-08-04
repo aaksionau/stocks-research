@@ -44,8 +44,8 @@ src/stocks_research/
 └── ui/                        # Streamlit app (Overview, Ticker Detail, Trends)
 ```
 
-The pipeline and web UI are packaged as separate Docker images (`Dockerfile.pipeline`,
-`Dockerfile.web`) with separate dependency extras, so the always-on dashboard never
+The pipeline and web UI are packaged as separate Docker images (`docker/pipeline.Dockerfile`,
+`docker/web.Dockerfile`) with separate dependency extras, so the always-on dashboard never
 needs market-data or LLM credentials, and the batch job never needs Streamlit.
 
 ## Getting started
@@ -55,7 +55,7 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync --extra pipeline --extra web --group dev
 cp .env.example .env   # fill in FOUNDRY_* if you want AI commentary
-docker compose up -d   # starts Postgres on localhost:5436
+docker compose -f docker/docker-compose.yml up -d   # starts Postgres on localhost:5436
 ```
 
 Run the pipeline once to populate data:
