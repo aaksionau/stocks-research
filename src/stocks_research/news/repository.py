@@ -1,3 +1,6 @@
+from collections import defaultdict
+from datetime import date
+
 import psycopg
 
 from stocks_research.config import DATABASE_URL
@@ -66,42 +69,28 @@ class NewsRepository:
         if not articles:
             return
         with psycopg.connect(self._database_url) as conn, conn.cursor() as cursor:
-            cursor.executemany(
-                UPSERT_SQL,
-                [
-                    {
-                        "ticker": a.ticker,
-                        "url": a.url,
-                        "headline": a.headline,
-                        "summary": a.summary,
-                        "source": a.source,
-                        "published_at": a.published_at,
-                    }
-                    for a in articles
-                ],
-            )
+            cursor.executemany(UPSERT_SQL, [vars(a) for a in articles])
 
     def get_recent_articles(self, ticker: str, limit: int = 20) -> list[NewsArticle]:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(RECENT_ARTICLES_SQL, {"ticker": ticker, "limit": limit}).fetchall()
         return [self._row_to_article(row) for row in rows]
 
-    def get_unscored_articles(self) -> list[NewsArticle]:
+    def get_unscored_articles_by_ticker_and_day(self) -> dict[tuple[str, date], list[NewsArticle]]:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(UNSCORED_ARTICLES_SQL).fetchall()
-        return [self._row_to_article(row) for row in rows]
+
+        groups: dict[tuple[str, date], list[NewsArticle]] = defaultdict(list)
+        for row in rows:
+            article = self._row_to_article(row)
+            groups[(article.ticker, article.published_at.date())].append(article)
+        return groups
 
     def save_sentiment_scores(self, articles: list[NewsArticle]) -> None:
         if not articles:
             return
         with psycopg.connect(self._database_url) as conn, conn.cursor() as cursor:
-            cursor.executemany(
-                UPDATE_SENTIMENT_SQL,
-                [
-                    {"ticker": a.ticker, "url": a.url, "sentiment_score": a.sentiment_score}
-                    for a in articles
-                ],
-            )
+            cursor.executemany(UPDATE_SENTIMENT_SQL, [vars(a) for a in articles])
 
     @staticmethod
     def _row_to_article(row: tuple) -> NewsArticle:

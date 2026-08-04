@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import date, datetime
 
 from stocks_research.news import sentiment_pipeline
 from stocks_research.news.data import NewsArticle
@@ -38,8 +39,11 @@ class FakeNewsRepository:
     def ensure_schema(self) -> None:
         self.schema_ensured = True
 
-    def get_unscored_articles(self) -> list[NewsArticle]:
-        return self._unscored
+    def get_unscored_articles_by_ticker_and_day(self) -> dict[tuple[str, date], list[NewsArticle]]:
+        groups: dict[tuple[str, date], list[NewsArticle]] = defaultdict(list)
+        for article in self._unscored:
+            groups[(article.ticker, article.published_at.date())].append(article)
+        return groups
 
     def save_sentiment_scores(self, articles: list[NewsArticle]) -> None:
         self.saved.extend(articles)

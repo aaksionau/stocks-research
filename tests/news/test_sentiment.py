@@ -38,13 +38,17 @@ class FakeAzureOpenAI:
         self.chat = FakeChat(content)
 
 
-@pytest.fixture
-def patch_azure_openai(monkeypatch):
-    fake_client = FakeAzureOpenAI()
+def patch_azure_openai_content(monkeypatch, content: str) -> FakeAzureOpenAI:
+    fake_client = FakeAzureOpenAI(content)
     monkeypatch.setattr(
         "stocks_research.news.sentiment.AzureOpenAI", lambda **kwargs: fake_client
     )
     return fake_client
+
+
+@pytest.fixture
+def patch_azure_openai(monkeypatch):
+    return patch_azure_openai_content(monkeypatch, "[0.5, -0.2]")
 
 
 def test_score_headlines_returns_parsed_scores(patch_azure_openai):
@@ -78,10 +82,7 @@ def test_score_headlines_with_no_headlines_makes_no_call(patch_azure_openai):
 
 
 def test_score_headlines_raises_on_non_json_response(monkeypatch):
-    fake_client = FakeAzureOpenAI(content="not json")
-    monkeypatch.setattr(
-        "stocks_research.news.sentiment.AzureOpenAI", lambda **kwargs: fake_client
-    )
+    patch_azure_openai_content(monkeypatch, "not json")
     client = NewsSentimentClient(api_key="key", endpoint="https://example.com")
 
     with pytest.raises(ValueError):
@@ -89,10 +90,7 @@ def test_score_headlines_raises_on_non_json_response(monkeypatch):
 
 
 def test_score_headlines_raises_on_mismatched_score_count(monkeypatch):
-    fake_client = FakeAzureOpenAI(content="[0.5]")
-    monkeypatch.setattr(
-        "stocks_research.news.sentiment.AzureOpenAI", lambda **kwargs: fake_client
-    )
+    patch_azure_openai_content(monkeypatch, "[0.5]")
     client = NewsSentimentClient(api_key="key", endpoint="https://example.com")
 
     with pytest.raises(ValueError):
