@@ -2,6 +2,7 @@ import logging
 from dataclasses import replace
 
 from stocks_research.config import TICKERS
+from stocks_research.market.backfill import backfill_histories
 from stocks_research.market.commentary import CommentaryClient
 from stocks_research.market.data import MarketDataClient
 from stocks_research.market.flagging import Flagger
@@ -36,6 +37,10 @@ def run(
         raise PipelineFailedError(
             f"Fetched no price history for any of {len(TICKERS)} tickers; treating as a systemic failure."
         )
+
+    if not repository.has_any_snapshots():
+        logger.info("No historical snapshots found; backfilling from today's fetched price history first.")
+        backfill_histories(price_histories, engine, repository)
 
     snapshots = []
     for ticker, history in price_histories.items():

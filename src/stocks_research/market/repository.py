@@ -87,6 +87,8 @@ FROM indicator_snapshots
 ORDER BY date DESC, ticker ASC
 """
 
+HAS_ANY_SNAPSHOT_SQL = "SELECT 1 FROM indicator_snapshots LIMIT 1"
+
 
 class SnapshotRepository:
     def __init__(self, database_url: str = DATABASE_URL):
@@ -115,6 +117,11 @@ class SnapshotRepository:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(ALL_SNAPSHOTS_SQL).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
+
+    def has_any_snapshots(self) -> bool:
+        with psycopg.connect(self._database_url) as conn:
+            row = conn.execute(HAS_ANY_SNAPSHOT_SQL).fetchone()
+        return row is not None
 
     @staticmethod
     def _row_to_snapshot(row: tuple) -> IndicatorSnapshot:
