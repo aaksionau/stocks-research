@@ -42,6 +42,11 @@ class FakeIndicatorEngine:
             raise ValueError(f"bad data for {ticker}")
         return make_snapshot(ticker)
 
+    def compute_indicator_history(self, ticker: str, history: pd.DataFrame) -> list[IndicatorSnapshot]:
+        if ticker in self._failing_tickers:
+            raise ValueError(f"bad data for {ticker}")
+        return [make_snapshot(ticker), make_snapshot(ticker)]
+
 
 class FakeCommentaryClient:
     def __init__(self, failing_tickers: set[str] = frozenset()):
@@ -56,8 +61,9 @@ class FakeCommentaryClient:
 
 
 class FakeSnapshotRepository:
-    def __init__(self, fail_on_save: bool = False):
+    def __init__(self, fail_on_save: bool = False, has_snapshots: bool = True):
         self._fail_on_save = fail_on_save
+        self._has_snapshots = has_snapshots
         self.saved: list[IndicatorSnapshot] = []
         self.schema_ensured = False
 
@@ -68,6 +74,9 @@ class FakeSnapshotRepository:
         if self._fail_on_save:
             raise ConnectionError("Postgres unreachable")
         self.saved.append(snapshot)
+
+    def has_any_snapshots(self) -> bool:
+        return self._has_snapshots
 
 
 def test_per_ticker_indicator_failure_is_skipped_not_fatal():
@@ -82,6 +91,22 @@ def test_per_ticker_indicator_failure_is_skipped_not_fatal():
     )
 
     assert [s.ticker for s in repository.saved] == ["AAPL"]
+
+
+def test_backfills_from_fetched_history_when_no_snapshots_exist():
+    histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
+    repository = FakeSnapshotRepository(has_snapshots=False)
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(),
+        commentary_client=FakeCommentaryClient(),
+        repository=repository,
+    )
+
+    # 2 backfilled rows per ticker from compute_indicator_history(), plus 1 today's row from compute_indicators().
+    assert len([s for s in repository.saved if s.ticker == "AAPL"]) == 3
+    assert len([s for s in repository.saved if s.ticker == "MSFT"]) == 3
 
 
 def test_no_price_history_at_all_raises_pipeline_failed_error():

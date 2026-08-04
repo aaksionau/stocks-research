@@ -1,5 +1,7 @@
 import logging
 
+import pandas as pd
+
 from stocks_research.config import TICKERS
 from stocks_research.market.data import MarketDataClient
 from stocks_research.market.indicators import IndicatorEngine
@@ -29,6 +31,17 @@ def run(
 
     price_histories = market_data.fetch_price_history(TICKERS, period=period)
 
+    saved = backfill_histories(price_histories, engine, repository)
+
+    logger.info("Backfill complete: saved %d rows across %d tickers", saved, len(price_histories))
+
+
+def backfill_histories(
+    price_histories: dict[str, pd.DataFrame],
+    engine: IndicatorEngine,
+    repository: SnapshotRepository,
+) -> int:
+    """Save one snapshot per historical day in each ticker's price history. Returns rows saved."""
     saved = 0
     for ticker, history in price_histories.items():
         try:
@@ -42,7 +55,7 @@ def run(
             saved += 1
         print(f"Backfilled {len(snapshots)} days for {ticker}")
 
-    logger.info("Backfill complete: saved %d rows across %d tickers", saved, len(price_histories))
+    return saved
 
 
 if __name__ == "__main__":
