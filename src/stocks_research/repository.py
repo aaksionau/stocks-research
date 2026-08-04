@@ -78,6 +78,15 @@ WHERE ticker = %(ticker)s
 ORDER BY date ASC
 """
 
+ALL_SNAPSHOTS_SQL = """
+SELECT
+    ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
+    ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
+    score, flagged, commentary
+FROM indicator_snapshots
+ORDER BY date DESC, ticker ASC
+"""
+
 
 class SnapshotRepository:
     def __init__(self, database_url: str = DATABASE_URL):
@@ -100,6 +109,11 @@ class SnapshotRepository:
     def get_ticker_history(self, ticker: str) -> list[IndicatorSnapshot]:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(TICKER_HISTORY_SQL, {"ticker": ticker}).fetchall()
+        return [self._row_to_snapshot(row) for row in rows]
+
+    def get_all_snapshots(self) -> list[IndicatorSnapshot]:
+        with psycopg.connect(self._database_url) as conn:
+            rows = conn.execute(ALL_SNAPSHOTS_SQL).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
 
     @staticmethod
