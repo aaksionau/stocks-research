@@ -3,7 +3,6 @@ import streamlit as st
 
 from stocks_research.repository import SnapshotRepository
 
-st.set_page_config(page_title="Stocks Research — Overview", layout="wide")
 st.title("Overview")
 
 snapshots = SnapshotRepository().get_latest_snapshots()
@@ -29,13 +28,21 @@ else:
     df = df.sort_values(["flagged", "score"], ascending=[False, False])
 
     st.caption(f"{len(df)} of {len(snapshots)} tickers ({df['flagged'].sum()} flagged)")
-    st.dataframe(
+    st.caption("Select a row to open that ticker's drill-down view.")
+    event = st.dataframe(
         df,
         use_container_width=True,
         hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
         column_config={
             "flagged": st.column_config.CheckboxColumn("Flagged"),
             "score": st.column_config.NumberColumn("Score", format="%.2f"),
             "commentary": st.column_config.TextColumn("AI Commentary", width="large"),
         },
     )
+
+    selected_rows = event.selection.rows if event and event.selection else []
+    if selected_rows:
+        st.session_state["selected_ticker"] = df.iloc[selected_rows[0]]["ticker"]
+        st.switch_page("ticker_detail.py")
