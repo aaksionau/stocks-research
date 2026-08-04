@@ -12,12 +12,16 @@ if not snapshots:
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.pipeline`")
 else:
     available_days = len({s.date for s in snapshots})
-    days = st.slider(
-        "Days to consider",
-        min_value=1,
-        max_value=available_days,
-        value=min(DEFAULT_WINDOW_DAYS, available_days),
-    )
+    if available_days <= 1:
+        st.caption("Only one day of data so far -- the window slider needs at least two.")
+        days = available_days
+    else:
+        days = st.slider(
+            "Days to consider",
+            min_value=1,
+            max_value=available_days,
+            value=min(DEFAULT_WINDOW_DAYS, available_days),
+        )
 
     summaries = summarize_trends(snapshots, days=days)
 
