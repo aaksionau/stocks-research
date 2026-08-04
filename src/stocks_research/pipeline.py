@@ -1,6 +1,8 @@
 import logging
+from dataclasses import replace
 
 from stocks_research.config import TICKERS
+from stocks_research.flagging import Flagger
 from stocks_research.indicators import IndicatorEngine
 from stocks_research.market_data import MarketDataClient
 from stocks_research.repository import SnapshotRepository
@@ -15,10 +17,12 @@ class PipelineFailedError(RuntimeError):
 def run(
     market_data: MarketDataClient | None = None,
     engine: IndicatorEngine | None = None,
+    flagger: Flagger | None = None,
     repository: SnapshotRepository | None = None,
 ) -> None:
     market_data = market_data or MarketDataClient()
     engine = engine or IndicatorEngine()
+    flagger = flagger or Flagger()
     repository = repository or SnapshotRepository()
 
     # Postgres unreachable raises here and aborts the run before any fetching happens.
@@ -30,18 +34,25 @@ def run(
             f"Fetched no price history for any of {len(TICKERS)} tickers; treating as a systemic failure."
         )
 
-    saved = 0
+    snapshots = []
     for ticker, history in price_histories.items():
         try:
-            snapshot = engine.compute_indicators(ticker, history)
+            snapshots.append(engine.compute_indicators(ticker, history))
         except Exception:
             logger.exception("Failed to compute indicators for %s", ticker)
             continue
 
+    flagged_scores = {f.ticker: f.score for f in flagger.rank(snapshots)}
+
+    saved = 0
+    for snapshot in snapshots:
+        score = flagged_scores.get(snapshot.ticker)
+        enriched = replace(snapshot, score=score, flagged=score is not None)
+
         # Not caught: a Postgres outage here should abort the run rather than be swallowed per ticker.
-        repository.save_snapshot(snapshot)
+        repository.save_snapshot(enriched)
         saved += 1
-        print(f"Saved snapshot for {ticker} on {snapshot.date}")
+        print(f"Saved snapshot for {enriched.ticker} on {enriched.date}")
 
     logger.info("Pipeline run complete: saved %d/%d tickers", saved, len(TICKERS))
 

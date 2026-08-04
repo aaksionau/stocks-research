@@ -17,11 +17,24 @@ else:
     trend_filter = st.multiselect(
         "Filter by MA trend", options=sorted(df["ma_trend"].unique()), default=[]
     )
+    flagged_only = st.checkbox("Flagged only")
 
     if ticker_filter:
         df = df[df["ticker"].str.contains(ticker_filter, case=False)]
     if trend_filter:
         df = df[df["ma_trend"].isin(trend_filter)]
+    if flagged_only:
+        df = df[df["flagged"]]
 
-    st.caption(f"{len(df)} of {len(snapshots)} tickers")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    df = df.sort_values(["flagged", "score"], ascending=[False, False])
+
+    st.caption(f"{len(df)} of {len(snapshots)} tickers ({df['flagged'].sum()} flagged)")
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "flagged": st.column_config.CheckboxColumn("Flagged"),
+            "score": st.column_config.NumberColumn("Score", format="%.2f"),
+        },
+    )

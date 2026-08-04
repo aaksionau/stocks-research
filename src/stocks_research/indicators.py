@@ -24,6 +24,8 @@ class IndicatorSnapshot:
     volume: int
     volume_avg_20: float | None
     volume_ratio: float | None
+    score: float | None = None
+    flagged: bool = False
 
 
 class IndicatorEngine:
