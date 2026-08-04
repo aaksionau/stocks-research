@@ -72,6 +72,44 @@ class IndicatorEngine:
             volume_ratio=volume_ratio,
         )
 
+    def compute_indicator_history(self, ticker: str, price_history: pd.DataFrame) -> list[IndicatorSnapshot]:
+        """One IndicatorSnapshot per row of price_history, each computed as if that row were "today"."""
+        close = price_history["Close"]
+        volume = price_history["Volume"]
+
+        momentum = {
+            window: self._pct_change_series(close, window) for window in MOMENTUM_WINDOWS
+        }
+        ma_50 = self._sma_series(close, MA_SHORT_WINDOW)
+        ma_200 = self._sma_series(close, MA_LONG_WINDOW)
+        pct_above_ma50 = (close - ma_50) / ma_50 * 100
+
+        volume_avg_20 = self._sma_series(volume, VOLUME_WINDOW)
+        volume_ratio = (volume / volume_avg_20).mask(volume_avg_20 == 0)
+
+        snapshots = []
+        for position, timestamp in enumerate(price_history.index):
+            ma_50_value = self._to_optional(ma_50.iloc[position])
+            ma_200_value = self._to_optional(ma_200.iloc[position])
+            snapshots.append(
+                IndicatorSnapshot(
+                    ticker=ticker,
+                    date=pd.Timestamp(timestamp).date(),
+                    close=float(close.iloc[position]),
+                    momentum_1d=self._to_optional(momentum[1].iloc[position]),
+                    momentum_5d=self._to_optional(momentum[5].iloc[position]),
+                    momentum_20d=self._to_optional(momentum[20].iloc[position]),
+                    ma_50=ma_50_value,
+                    ma_200=ma_200_value,
+                    ma_trend=self._ma_trend(ma_50_value, ma_200_value),
+                    pct_above_ma50=self._to_optional(pct_above_ma50.iloc[position]),
+                    volume=int(volume.iloc[position]),
+                    volume_avg_20=self._to_optional(volume_avg_20.iloc[position]),
+                    volume_ratio=self._to_optional(volume_ratio.iloc[position]),
+                )
+            )
+        return snapshots
+
     @staticmethod
     def _pct_change(series: pd.Series, window: int) -> float | None:
         if len(series) <= window:
@@ -86,6 +124,19 @@ class IndicatorEngine:
         if len(series) < window:
             return None
         return float(series.iloc[-window:].mean())
+
+    @staticmethod
+    def _pct_change_series(series: pd.Series, window: int) -> pd.Series:
+        previous = series.shift(window)
+        return ((series - previous) / previous * 100).mask(previous == 0)
+
+    @staticmethod
+    def _sma_series(series: pd.Series, window: int) -> pd.Series:
+        return series.rolling(window=window, min_periods=window).mean()
+
+    @staticmethod
+    def _to_optional(value: float) -> float | None:
+        return None if pd.isna(value) else float(value)
 
     @staticmethod
     def _ma_trend(ma_50: float | None, ma_200: float | None) -> str:

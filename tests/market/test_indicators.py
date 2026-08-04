@@ -83,3 +83,51 @@ def test_volume_ratio_detects_spike():
     expected_avg = (19 * 1_000_000 + 5_000_000) / 20
     assert snapshot.volume_avg_20 == pytest.approx(expected_avg)
     assert snapshot.volume_ratio == pytest.approx(5_000_000 / expected_avg)
+
+
+def test_indicator_history_returns_one_snapshot_per_row():
+    closes = [100.0 + i for i in range(25)]
+    volumes = [1_000_000] * 25
+    history = engine.compute_indicator_history("TEST", build_frame(closes, volumes))
+
+    assert len(history) == 25
+    assert [s.date for s in history] == [pd.Timestamp("2020-01-01").date() + pd.Timedelta(days=i) for i in range(25)]
+
+
+def test_indicator_history_last_row_matches_compute_indicators():
+    closes = [100.0] * 150 + [200.0] * 60
+    volumes = [1_000_000] * 209 + [5_000_000]
+    frame = build_frame(closes, volumes)
+
+    single = engine.compute_indicators("TEST", frame)
+    history = engine.compute_indicator_history("TEST", frame)
+    last = history[-1]
+
+    assert last.date == single.date
+    assert last.close == pytest.approx(single.close)
+    assert last.momentum_1d == pytest.approx(single.momentum_1d)
+    assert last.momentum_5d == pytest.approx(single.momentum_5d)
+    assert last.momentum_20d == pytest.approx(single.momentum_20d)
+    assert last.ma_50 == pytest.approx(single.ma_50)
+    assert last.ma_200 == pytest.approx(single.ma_200)
+    assert last.ma_trend == single.ma_trend
+    assert last.pct_above_ma50 == pytest.approx(single.pct_above_ma50)
+    assert last.volume == single.volume
+    assert last.volume_avg_20 == pytest.approx(single.volume_avg_20)
+    assert last.volume_ratio == pytest.approx(single.volume_ratio)
+
+
+def test_indicator_history_early_rows_have_none_indicators():
+    closes = [100.0 + i for i in range(25)]
+    volumes = [1_000_000] * 25
+    history = engine.compute_indicator_history("TEST", build_frame(closes, volumes))
+
+    first = history[0]
+    assert first.momentum_1d is None
+    assert first.momentum_5d is None
+    assert first.momentum_20d is None
+    assert first.ma_50 is None
+    assert first.ma_200 is None
+    assert first.ma_trend == "neutral"
+    assert first.volume_avg_20 is None
+    assert first.volume_ratio is None
