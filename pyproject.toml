@@ -1,0 +1,28 @@
+[project]
+name = "stocks-research"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Aliaksei Aksionau", email = "alexei.aksenov@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=3.0.5",
+    "psycopg[binary]>=3.3.4",
+    "python-dotenv>=1.2.2",
+    "streamlit>=1.60.0",
+    "yfinance>=1.5.2",
+]
+
+[project.scripts]
+stocks-research = "stocks_research:main"
+
+[build-system]
+requires = ["uv_build>=0.9.15,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
