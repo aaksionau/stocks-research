@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from stocks_research.news.repository import NewsRepository
-from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_news_trends
+from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_news_trends, windowed_articles
 
 st.title("News Sentiment Trends")
 
@@ -27,10 +27,8 @@ else:
             value=min(DEFAULT_WINDOW_DAYS, available_days),
         )
 
-    ticker_filter = st.text_input("Filter by ticker")
-    filtered_articles = (
-        [a for a in articles if ticker_filter.upper() in a.ticker.upper()] if ticker_filter else articles
-    )
+    ticker_filter = st.text_input("Filter by ticker").upper()
+    filtered_articles = [a for a in articles if ticker_filter in a.ticker.upper()] if ticker_filter else articles
 
     summaries = summarize_news_trends(filtered_articles, days=days)
 
@@ -43,8 +41,6 @@ else:
             f"{len(summary_df)} ticker(s) with scored news across the last {days} day(s) of data."
         )
 
-        distinct_dates = sorted({a.published_at.date() for a in filtered_articles}, reverse=True)[:days]
-        cutoff = distinct_dates[-1]
         daily = pd.DataFrame(
             [
                 {
@@ -52,8 +48,7 @@ else:
                     "ticker": a.ticker,
                     "sentiment_score": a.sentiment_score,
                 }
-                for a in filtered_articles
-                if a.published_at.date() >= cutoff
+                for a in windowed_articles(filtered_articles, days=days)
             ]
         )
         daily_avg = daily.groupby(["date", "ticker"])["sentiment_score"].mean().unstack("ticker")

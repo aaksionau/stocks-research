@@ -17,26 +17,30 @@ class NewsSentimentTrend:
     last_published_date: date
 
 
-def summarize_news_trends(
-    articles: list[NewsArticle], days: int = DEFAULT_WINDOW_DAYS
-) -> list[NewsSentimentTrend]:
-    """Ranks tickers by news sentiment over the most recent `days` of data present.
+def windowed_articles(articles: list[NewsArticle], days: int = DEFAULT_WINDOW_DAYS) -> list[NewsArticle]:
+    """Returns scored articles from the most recent `days` of data present.
 
     The window is anchored to the most recent published date in `articles`, not to
     today's calendar date, mirroring `market.trends.summarize_trends()` so this is
     verifiable against seeded historical dates without real time passing.
     """
-    scored = [(a.published_at.date(), a) for a in articles if a.sentiment_score is not None]
+    scored = [a for a in articles if a.sentiment_score is not None]
 
-    distinct_dates = sorted({d for d, _ in scored}, reverse=True)[:days]
+    distinct_dates = sorted({a.published_at.date() for a in scored}, reverse=True)[:days]
     if not distinct_dates:
         return []
 
     cutoff = distinct_dates[-1]
+    return [a for a in scored if a.published_at.date() >= cutoff]
+
+
+def summarize_news_trends(
+    articles: list[NewsArticle], days: int = DEFAULT_WINDOW_DAYS
+) -> list[NewsSentimentTrend]:
+    """Ranks tickers by news sentiment over the most recent `days` of data present."""
     by_ticker: dict[str, list[NewsArticle]] = {}
-    for published_date, article in scored:
-        if published_date >= cutoff:
-            by_ticker.setdefault(article.ticker, []).append(article)
+    for article in windowed_articles(articles, days):
+        by_ticker.setdefault(article.ticker, []).append(article)
 
     return sorted(
         (
