@@ -13,4 +13,13 @@ FOUNDRY_API_KEY = os.environ.get("FOUNDRY_API_KEY")
 FOUNDRY_DEPLOYMENT = os.environ.get("FOUNDRY_DEPLOYMENT", "gpt-4o-mini")
 FOUNDRY_API_VERSION = os.environ.get("FOUNDRY_API_VERSION", "2024-10-21")
 
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
+
 TICKERS = SP500_TICKERS
+
+# Smaller, separately-configured watchlist for news fetching -- not the full S&P 500 universe.
+NEWS_TICKERS = [
+    ticker.strip()
+    for ticker in os.environ.get("NEWS_TICKERS", "AAPL,MSFT,GOOGL,AMZN,NVDA").split(",")
+    if ticker.strip()
+]

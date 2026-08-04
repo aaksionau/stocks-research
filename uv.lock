@@ -1164,6 +1164,7 @@ pipeline = [
     { name = "openai" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "requests" },
     { name = "yfinance" },
 ]
 web = [
@@ -1185,6 +1186,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], marker = "extra == 'pipeline'", specifier = ">=3.3.4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'web'", specifier = ">=3.3.4" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "requests", marker = "extra == 'pipeline'", specifier = ">=2.32.0" },
     { name = "streamlit", marker = "extra == 'web'", specifier = ">=1.60.0" },
     { name = "yfinance", marker = "extra == 'pipeline'", specifier = ">=1.5.2" },
 ]

@@ -19,6 +19,7 @@ pipeline = [
     "openai>=2.53.0",
     "pandas>=3.0.5",
     "psycopg[binary]>=3.3.4",
+    "requests>=2.32.0",
     "yfinance>=1.5.2",
 ]
 web = [

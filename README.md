@@ -36,6 +36,9 @@ src/stocks_research/
 ├── commentary.py            # Azure AI Foundry (gpt-4o-mini) descriptive commentary
 ├── repository.py            # Postgres schema + upsert/read queries
 ├── trends.py                 # rolling-window flag-frequency summaries
+├── news_pipeline.py          # fetch -> persist entrypoint for the news watchlist
+├── news_data.py               # Finnhub company-news fetch
+├── news_repository.py        # Postgres schema + upsert/read queries for news articles
 ├── config.py                 # env-driven configuration
 ├── sp500_constituents.py    # the ticker universe
 └── ui/                        # Streamlit app (Overview, Ticker Detail, Trends)
@@ -61,6 +64,12 @@ Run the pipeline once to populate data:
 uv run python -m stocks_research.pipeline
 ```
 
+Fetch and persist raw news for the configured watchlist (requires `FINNHUB_API_KEY`):
+
+```bash
+uv run python -m stocks_research.news_pipeline
+```
+
 Launch the dashboard:
 
 ```bash
@@ -77,6 +86,8 @@ Set via environment variables or `.env` (see `.env.example`):
 | `FOUNDRY_ENDPOINT`, `FOUNDRY_API_KEY` | Azure AI Foundry resource for commentary |
 | `FOUNDRY_DEPLOYMENT` | Model deployment name (default `gpt-4o-mini`) |
 | `FOUNDRY_API_VERSION` | Azure OpenAI API version |
+| `FINNHUB_API_KEY` | [Finnhub](https://finnhub.io) API key for news fetching |
+| `NEWS_TICKERS` | Comma-separated news watchlist (default `AAPL,MSFT,GOOGL,AMZN,NVDA`) — smaller than the full S&P 500 universe |
 
 Without `FOUNDRY_*` credentials, the pipeline still runs — commentary generation for
 flagged tickers just fails per-ticker and is logged, not fatal to the run.
