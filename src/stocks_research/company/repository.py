@@ -1,6 +1,6 @@
 import psycopg
 
-from stocks_research.company.data import CompanyProfile
+from stocks_research.company.profile import CompanyProfile
 from stocks_research.config import DATABASE_URL
 
 CREATE_TABLE_SQL = """
