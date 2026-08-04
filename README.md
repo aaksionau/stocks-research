@@ -40,15 +40,20 @@ src/stocks_research/
 │   ├── trends.py              # rolling-window flag-frequency summaries
 │   └── sp500_constituents.py  # the ticker universe
 ├── news/                      # news pipeline
-│   ├── pipeline.py            # fetch -> persist entrypoint for the news watchlist
+│   ├── pipeline.py            # orchestrates fetch -> score -> persist for the news watchlist
 │   ├── data.py                 # Finnhub company-news fetch
-│   └── repository.py          # Postgres schema + upsert/read queries for news articles
-└── ui/                         # Streamlit app (Overview, Ticker Detail, Trends)
+│   ├── sentiment.py            # Azure AI Foundry (gpt-4o-mini) headline sentiment scoring
+│   ├── repository.py          # Postgres schema + upsert/read queries for news articles
+│   └── trends.py               # rolling-window sentiment aggregation
+└── ui/                         # Streamlit app (Overview, Ticker Detail, Trends, News Trends)
 ```
 
-The pipeline and web UI are packaged as separate Docker images (`docker/pipeline.Dockerfile`,
-`docker/web.Dockerfile`) with separate dependency extras, so the always-on dashboard never
-needs market-data or LLM credentials, and the batch job never needs Streamlit.
+The market pipeline, news pipeline, and web UI are packaged as separate Docker images
+(`docker/pipeline.Dockerfile`, `docker/news-pipeline.Dockerfile`, `docker/web.Dockerfile`) with
+separate dependency extras and independent schedules -- news moves faster than end-of-day
+prices, so it runs on its own cadence rather than folding into the market pipeline. The
+always-on dashboard never needs market-data or LLM credentials, and neither batch job needs
+Streamlit.
 
 ## Getting started
 
@@ -66,7 +71,8 @@ Run the pipeline once to populate data:
 uv run python -m stocks_research.market.pipeline
 ```
 
-Fetch and persist raw news for the configured watchlist (requires `FINNHUB_API_KEY`):
+Fetch, score, and persist news for the configured watchlist (requires `FINNHUB_API_KEY`;
+sentiment scoring uses the same `FOUNDRY_*` credentials as market commentary):
 
 ```bash
 uv run python -m stocks_research.news.pipeline

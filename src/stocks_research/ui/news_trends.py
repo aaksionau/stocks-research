@@ -11,8 +11,7 @@ articles = NewsRepository().get_scored_articles()
 if not articles:
     st.info(
         "No scored news articles yet. Run the pipeline first: "
-        "`uv run python -m stocks_research.news.pipeline` then "
-        "`uv run python -m stocks_research.news.sentiment_pipeline`"
+        "`uv run python -m stocks_research.news.pipeline`"
     )
 else:
     available_days = len({a.published_at.date() for a in articles})
