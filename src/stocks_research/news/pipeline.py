@@ -34,6 +34,12 @@ def run(
         "News fetch complete: saved %d articles for %d tickers", len(articles), len(NEWS_TICKERS)
     )
 
+    _score_unscored_articles(sentiment_client, repository)
+
+
+def _score_unscored_articles(sentiment_client: NewsSentimentClient, repository: NewsRepository) -> None:
+    # Re-queries rather than scoring `articles` directly so any backlog left over from a
+    # previous run's per-batch failures gets retried here too, not just this run's fetch.
     groups = repository.get_unscored_articles_by_ticker_and_day()
     total_unscored = sum(len(group) for group in groups.values())
     scored_count = 0

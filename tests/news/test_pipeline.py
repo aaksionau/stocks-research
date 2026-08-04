@@ -40,7 +40,7 @@ class FakeNewsSentimentClient:
 
 
 class FakeNewsRepository:
-    """Fake standing in for Postgres: fetched articles land straight in `_unscored`, mirroring the real repo."""
+    """Fake standing in for Postgres: fetched articles land straight in `saved_articles`, mirroring the real repo."""
 
     def __init__(self):
         self.saved_articles: list[NewsArticle] = []
@@ -90,20 +90,7 @@ def test_run_fetches_and_saves_articles_for_configured_watchlist():
     assert len(news_client.calls) == 1
 
 
-def test_run_scores_newly_fetched_articles_in_the_same_run():
-    articles = [make_article("AAPL", "Headline 1"), make_article("AAPL", "Headline 2")]
-    repository = FakeNewsRepository()
-
-    news_pipeline.run(
-        news_client=FakeNewsClient(articles),
-        sentiment_client=FakeNewsSentimentClient(scores_by_ticker={"AAPL": [0.5, -0.1]}),
-        repository=repository,
-    )
-
-    assert [a.sentiment_score for a in repository.saved_scores] == [0.5, -0.1]
-
-
-def test_run_batches_scoring_by_ticker_and_day_in_a_single_call():
+def test_run_scores_newly_fetched_articles_in_a_single_batched_call():
     articles = [make_article("AAPL", "Headline 1"), make_article("AAPL", "Headline 2")]
     repository = FakeNewsRepository()
     sentiment_client = FakeNewsSentimentClient(scores_by_ticker={"AAPL": [0.5, -0.1]})
@@ -114,6 +101,7 @@ def test_run_batches_scoring_by_ticker_and_day_in_a_single_call():
         repository=repository,
     )
 
+    assert [a.sentiment_score for a in repository.saved_scores] == [0.5, -0.1]
     assert len(sentiment_client.calls) == 1
     ticker, headlines = sentiment_client.calls[0]
     assert ticker == "AAPL"
