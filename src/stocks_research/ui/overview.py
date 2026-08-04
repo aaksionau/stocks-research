@@ -12,11 +12,13 @@ if not snapshots:
 else:
     df = pd.DataFrame([vars(s) for s in snapshots]).sort_values("ticker")
 
-    ticker_filter = st.text_input("Filter by ticker")
-    trend_filter = st.multiselect(
+    filter_cols = st.columns([2, 2, 1, 1])
+    ticker_filter = filter_cols[0].text_input("Filter by ticker")
+    trend_filter = filter_cols[1].multiselect(
         "Filter by MA trend", options=sorted(df["ma_trend"].unique()), default=[]
     )
-    flagged_only = st.checkbox("Flagged only")
+    flagged_only = filter_cols[2].checkbox("Flagged only")
+    bearish_flagged_only = filter_cols[3].checkbox("Bearish + flagged")
 
     if ticker_filter:
         df = df[df["ticker"].str.contains(ticker_filter, case=False)]
@@ -24,11 +26,15 @@ else:
         df = df[df["ma_trend"].isin(trend_filter)]
     if flagged_only:
         df = df[df["flagged"]]
+    if bearish_flagged_only:
+        df = df[df["flagged"] & (df["ma_trend"] == "bearish")]
 
     df = df.sort_values(["flagged", "score"], ascending=[False, False])
 
-    st.caption(f"{len(df)} of {len(snapshots)} tickers ({df['flagged'].sum()} flagged)")
-    st.caption("Select a row to open that ticker's drill-down view.")
+    st.caption(
+        f"{len(df)} of {len(snapshots)} tickers ({df['flagged'].sum()} flagged) "
+        "· Select a row to open that ticker's drill-down view."
+    )
     event = st.dataframe(
         df,
         use_container_width=True,
