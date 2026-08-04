@@ -55,6 +55,13 @@ WHERE sentiment_score IS NULL
 ORDER BY ticker, published_at
 """
 
+SCORED_ARTICLES_SQL = """
+SELECT ticker, url, headline, summary, source, published_at, sentiment_score
+FROM news_articles
+WHERE sentiment_score IS NOT NULL
+ORDER BY ticker, published_at
+"""
+
 
 class NewsRepository:
     def __init__(self, database_url: str = DATABASE_URL):
@@ -85,6 +92,11 @@ class NewsRepository:
             article = self._row_to_article(row)
             groups[(article.ticker, article.published_at.date())].append(article)
         return groups
+
+    def get_scored_articles(self) -> list[NewsArticle]:
+        with psycopg.connect(self._database_url) as conn:
+            rows = conn.execute(SCORED_ARTICLES_SQL).fetchall()
+        return [self._row_to_article(row) for row in rows]
 
     def save_sentiment_scores(self, articles: list[NewsArticle]) -> None:
         if not articles:
