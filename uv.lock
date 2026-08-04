@@ -1156,12 +1156,20 @@ name = "stocks-research"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "python-dotenv" },
+]
+
+[package.optional-dependencies]
+pipeline = [
     { name = "openai" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
-    { name = "python-dotenv" },
-    { name = "streamlit" },
     { name = "yfinance" },
+]
+web = [
+    { name = "pandas" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "streamlit" },
 ]
 
 [package.dev-dependencies]
@@ -1171,13 +1179,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openai", specifier = ">=2.53.0" },
-    { name = "pandas", specifier = ">=3.0.5" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
+    { name = "openai", marker = "extra == 'pipeline'", specifier = ">=2.53.0" },
+    { name = "pandas", marker = "extra == 'pipeline'", specifier = ">=3.0.5" },
+    { name = "pandas", marker = "extra == 'web'", specifier = ">=3.0.5" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'pipeline'", specifier = ">=3.3.4" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'web'", specifier = ">=3.3.4" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "streamlit", specifier = ">=1.60.0" },
-    { name = "yfinance", specifier = ">=1.5.2" },
+    { name = "streamlit", marker = "extra == 'web'", specifier = ">=1.60.0" },
+    { name = "yfinance", marker = "extra == 'pipeline'", specifier = ">=1.5.2" },
 ]
+provides-extras = ["pipeline", "web"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=9.1.1" }]
