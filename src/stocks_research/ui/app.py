@@ -24,6 +24,7 @@ _ensure_schema()
 overview = st.Page("overview.py", title="Overview", icon="📊", default=True)
 ticker_detail = st.Page("ticker_detail.py", title="Ticker Detail", icon="🔍")
 trends = st.Page("trends.py", title="Trends", icon="📈")
+glossary = st.Page("glossary.py", title="Glossary", icon="📖")
 
-pg = st.navigation([overview, ticker_detail, trends], position="top")
+pg = st.navigation([overview, ticker_detail, trends, glossary], position="top")
 pg.run()
