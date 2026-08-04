@@ -4,7 +4,7 @@ import streamlit as st
 from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
-from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_news_trends, windowed_articles
+from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_ticker_trend, windowed_articles
 
 st.title("Ticker Detail")
 
@@ -80,7 +80,7 @@ else:
                 st.write(row["commentary"])
 
     with news_tab:
-        articles = [a for a in NewsRepository().get_scored_articles() if a.ticker == ticker]
+        articles = NewsRepository().get_scored_articles(ticker)
 
         if not articles:
             st.info(
@@ -100,22 +100,19 @@ else:
                     value=min(DEFAULT_WINDOW_DAYS, available_days),
                 )
 
-            summaries = summarize_news_trends(articles, days=news_days)
+            window = windowed_articles(articles, days=news_days)
 
-            if not summaries:
+            if not window:
                 st.info("No scored news in the selected window.")
             else:
-                summary = summaries[0]
+                summary = summarize_ticker_trend(window)
                 st.caption(
                     f"{summary.article_count} article(s) across the last {news_days} day(s) of data -- "
                     f"sentiment is {summary.sentiment_direction}."
                 )
 
                 daily = pd.DataFrame(
-                    [
-                        {"date": a.published_at.date(), "sentiment_score": a.sentiment_score}
-                        for a in windowed_articles(articles, days=news_days)
-                    ]
+                    [{"date": a.published_at.date(), "sentiment_score": a.sentiment_score} for a in window]
                 )
                 daily_avg = daily.groupby("date")["sentiment_score"].mean()
                 st.line_chart(daily_avg)
@@ -128,7 +125,7 @@ else:
                             "source": a.source,
                             "sentiment_score": a.sentiment_score,
                         }
-                        for a in windowed_articles(articles, days=news_days)
+                        for a in window
                     ]
                 ).sort_values("published_at", ascending=False)
 

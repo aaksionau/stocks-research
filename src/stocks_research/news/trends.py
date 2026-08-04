@@ -34,6 +34,17 @@ def windowed_articles(articles: list[NewsArticle], days: int = DEFAULT_WINDOW_DA
     return [a for a in scored if a.published_at.date() >= cutoff]
 
 
+def summarize_ticker_trend(window: list[NewsArticle]) -> NewsSentimentTrend:
+    """Summarizes a single ticker's already-windowed articles (see `windowed_articles`)."""
+    return NewsSentimentTrend(
+        ticker=window[0].ticker,
+        article_count=len(window),
+        avg_sentiment=statistics.mean(a.sentiment_score for a in window),
+        sentiment_direction=_sentiment_direction(window),
+        last_published_date=max(a.published_at.date() for a in window),
+    )
+
+
 def summarize_news_trends(
     articles: list[NewsArticle], days: int = DEFAULT_WINDOW_DAYS
 ) -> list[NewsSentimentTrend]:
@@ -43,16 +54,7 @@ def summarize_news_trends(
         by_ticker.setdefault(article.ticker, []).append(article)
 
     return sorted(
-        (
-            NewsSentimentTrend(
-                ticker=ticker,
-                article_count=len(entries),
-                avg_sentiment=statistics.mean(a.sentiment_score for a in entries),
-                sentiment_direction=_sentiment_direction(entries),
-                last_published_date=max(a.published_at.date() for a in entries),
-            )
-            for ticker, entries in by_ticker.items()
-        ),
+        (summarize_ticker_trend(entries) for entries in by_ticker.values()),
         key=lambda t: (t.avg_sentiment, t.article_count),
         reverse=True,
     )
