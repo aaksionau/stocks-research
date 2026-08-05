@@ -38,9 +38,15 @@ def run(
             f"Fetched no price history for any of {len(TICKERS)} tickers; treating as a systemic failure."
         )
 
-    if not repository.has_any_snapshots():
-        logger.info("No historical snapshots found; backfilling from today's fetched price history first.")
-        backfill_histories(price_histories, engine, repository)
+    existing_tickers = repository.get_tickers_with_snapshots()
+    missing_histories = {ticker: history for ticker, history in price_histories.items() if ticker not in existing_tickers}
+    if missing_histories:
+        logger.info(
+            "Backfilling history for %d ticker(s) with no snapshots yet: %s",
+            len(missing_histories),
+            sorted(missing_histories),
+        )
+        backfill_histories(missing_histories, engine, repository)
 
     snapshots = []
     for ticker, history in price_histories.items():

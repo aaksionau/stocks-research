@@ -87,7 +87,7 @@ FROM indicator_snapshots
 ORDER BY date DESC, ticker ASC
 """
 
-HAS_ANY_SNAPSHOT_SQL = "SELECT 1 FROM indicator_snapshots LIMIT 1"
+TICKERS_WITH_SNAPSHOTS_SQL = "SELECT DISTINCT ticker FROM indicator_snapshots"
 
 
 class SnapshotRepository:
@@ -102,6 +102,12 @@ class SnapshotRepository:
     def save_snapshot(self, snapshot: IndicatorSnapshot) -> None:
         with psycopg.connect(self._database_url) as conn:
             conn.execute(UPSERT_SQL, vars(snapshot))
+
+    def save_snapshots(self, snapshots: list[IndicatorSnapshot]) -> None:
+        """Save many snapshots over a single connection, e.g. one ticker's full backfilled history."""
+        with psycopg.connect(self._database_url) as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(UPSERT_SQL, [vars(snapshot) for snapshot in snapshots])
 
     def get_latest_snapshots(self) -> list[IndicatorSnapshot]:
         with psycopg.connect(self._database_url) as conn:
@@ -118,10 +124,10 @@ class SnapshotRepository:
             rows = conn.execute(ALL_SNAPSHOTS_SQL).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
 
-    def has_any_snapshots(self) -> bool:
+    def get_tickers_with_snapshots(self) -> set[str]:
         with psycopg.connect(self._database_url) as conn:
-            row = conn.execute(HAS_ANY_SNAPSHOT_SQL).fetchone()
-        return row is not None
+            rows = conn.execute(TICKERS_WITH_SNAPSHOTS_SQL).fetchall()
+        return {row[0] for row in rows}
 
     @staticmethod
     def _row_to_snapshot(row: tuple) -> IndicatorSnapshot:

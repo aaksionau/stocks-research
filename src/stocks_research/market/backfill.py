@@ -50,9 +50,8 @@ def backfill_histories(
             logger.exception("Failed to compute indicator history for %s", ticker)
             continue
 
-        for snapshot in snapshots:
-            repository.save_snapshot(snapshot)
-            saved += 1
+        repository.save_snapshots(snapshots)
+        saved += len(snapshots)
         print(f"Backfilled {len(snapshots)} days for {ticker}")
 
     return saved
