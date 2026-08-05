@@ -62,10 +62,10 @@ WHERE ticker = %(ticker)s AND sentiment_score IS NOT NULL
 ORDER BY published_at
 """
 
-ALL_SCORED_ARTICLES_SQL = """
+SCORED_ARTICLES_FOR_TICKERS_SQL = """
 SELECT ticker, url, headline, summary, source, published_at, sentiment_score
 FROM news_articles
-WHERE sentiment_score IS NOT NULL
+WHERE ticker = ANY(%(tickers)s) AND sentiment_score IS NOT NULL
 ORDER BY published_at
 """
 
@@ -105,9 +105,9 @@ class NewsRepository:
             rows = conn.execute(SCORED_ARTICLES_SQL, {"ticker": ticker}).fetchall()
         return [self._row_to_article(row) for row in rows]
 
-    def get_all_scored_articles(self) -> list[NewsArticle]:
+    def get_scored_articles_for_tickers(self, tickers: list[str]) -> list[NewsArticle]:
         with psycopg.connect(self._database_url) as conn:
-            rows = conn.execute(ALL_SCORED_ARTICLES_SQL).fetchall()
+            rows = conn.execute(SCORED_ARTICLES_FOR_TICKERS_SQL, {"tickers": tickers}).fetchall()
         return [self._row_to_article(row) for row in rows]
 
     def save_sentiment_scores(self, articles: list[NewsArticle]) -> None:

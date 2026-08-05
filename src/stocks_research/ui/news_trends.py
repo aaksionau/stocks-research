@@ -4,7 +4,8 @@ import streamlit as st
 from stocks_research.news.data import NewsArticle
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
-from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_news_trends, windowed_articles
+from stocks_research.news.trends import summarize_news_trends, windowed_articles
+from stocks_research.ui.news_widgets import days_window_slider
 from stocks_research.ui.theme import sentiment_direction_label
 
 st.title("News Trends")
@@ -14,8 +15,8 @@ subscription_repository = NewsSubscriptionRepository()
 
 
 @st.cache_data(ttl=300)
-def _load_scored_articles() -> list[NewsArticle]:
-    return NewsRepository().get_all_scored_articles()
+def _load_scored_articles(tickers: tuple[str, ...]) -> list[NewsArticle]:
+    return NewsRepository().get_scored_articles_for_tickers(list(tickers))
 
 
 tracked_tickers = sorted(subscription_repository.get_subscribed_tickers())
@@ -50,8 +51,8 @@ else:
             if not row["track"]:
                 subscription_repository.unsubscribe(row["ticker"])
 
-    still_tracked = set(edited.loc[edited["track"], "ticker"])
-    articles = [a for a in _load_scored_articles() if a.ticker in still_tracked]
+    still_tracked = tuple(sorted(edited.loc[edited["track"], "ticker"]))
+    articles = _load_scored_articles(still_tracked) if still_tracked else []
 
     with trend_slot:
         if not articles:
@@ -60,18 +61,7 @@ else:
                 "`uv run python -m stocks_research.news.pipeline`"
             )
         else:
-            available_days = len({a.published_at.date() for a in articles})
-            if available_days <= 1:
-                st.caption("Only one day of data so far -- the window slider needs at least two.")
-                days = available_days
-            else:
-                days = st.slider(
-                    "Days to consider",
-                    min_value=1,
-                    max_value=available_days,
-                    value=min(DEFAULT_WINDOW_DAYS, available_days),
-                )
-
+            days = days_window_slider(articles)
             window = windowed_articles(articles, days=days)
 
             if not window:

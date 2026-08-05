@@ -6,8 +6,9 @@ from stocks_research.market import signals
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
-from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_ticker_trend, windowed_articles
-from stocks_research.ui.theme import trend_badge, verdict_badge
+from stocks_research.news.trends import summarize_ticker_trend, windowed_articles
+from stocks_research.ui.news_widgets import days_window_slider
+from stocks_research.ui.theme import sentiment_direction_label, trend_badge, verdict_badge
 
 st.title("Ticker Detail")
 
@@ -164,18 +165,7 @@ else:
                     "`uv run python -m stocks_research.news.pipeline`"
                 )
         else:
-            available_days = len({a.published_at.date() for a in articles})
-            if available_days <= 1:
-                st.caption("Only one day of data so far -- the window slider needs at least two.")
-                news_days = available_days
-            else:
-                news_days = st.slider(
-                    "Days to consider",
-                    min_value=1,
-                    max_value=available_days,
-                    value=min(DEFAULT_WINDOW_DAYS, available_days),
-                )
-
+            news_days = days_window_slider(articles)
             window = windowed_articles(articles, days=news_days)
 
             if not window:
@@ -186,7 +176,7 @@ else:
                 summary_cols = st.columns(3)
                 summary_cols[0].metric("Articles", summary.article_count)
                 summary_cols[1].metric("Avg Sentiment", f"{summary.avg_sentiment:+.2f}")
-                summary_cols[2].metric("Direction", summary.sentiment_direction.title())
+                summary_cols[2].metric("Direction", sentiment_direction_label(summary.sentiment_direction))
 
                 daily = pd.DataFrame(
                     [{"date": a.published_at.date(), "sentiment_score": a.sentiment_score} for a in window]
