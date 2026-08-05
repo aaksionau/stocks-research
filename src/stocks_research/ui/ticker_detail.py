@@ -2,11 +2,12 @@ import pandas as pd
 import streamlit as st
 
 from stocks_research.company.repository import CompanyProfileRepository
+from stocks_research.market import signals
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_ticker_trend, windowed_articles
-from stocks_research.ui.theme import trend_badge
+from stocks_research.ui.theme import trend_badge, verdict_badge
 
 st.title("Ticker Detail")
 
@@ -24,9 +25,11 @@ else:
     st.query_params["ticker"] = ticker
 
     history = repository.get_ticker_history(ticker)
+    latest_snapshot = history[-1]
     df = pd.DataFrame([vars(s) for s in history]).sort_values("date")
     latest = df.iloc[-1]
 
+    profile = CompanyProfileRepository().get_profile(ticker)
     news_repository = NewsRepository()
     subscription_repository = NewsSubscriptionRepository()
     is_subscribed = subscription_repository.is_subscribed(ticker)
@@ -55,13 +58,19 @@ else:
         )
         header_cols[4].metric("Score", f"{latest['score']:.2f}" if pd.notna(latest["score"]) else "N/A")
 
+    CHECK_ICON = {True: ":material/check_circle:", False: ":material/cancel:", None: ":material/help:"}
+    with st.container(border=True):
+        signal = signals.evaluate(latest_snapshot, profile)
+        st.markdown("##### Long-Term Buy Signal")
+        verdict_badge(signal.verdict)
+        for check in signal.checks:
+            st.markdown(f"{CHECK_ICON[check.passed]} **{check.name}** -- {check.detail}")
+
     overview_tab, price_tab, indicators_tab, commentary_tab, news_tab = st.tabs(
         ["Company Overview", "Price & Volume", "Indicator History", "AI Commentary", "News Sentiment"]
     )
 
     with overview_tab:
-        profile = CompanyProfileRepository().get_profile(ticker)
-
         if profile is None:
             st.info(
                 "No company profile yet for this ticker. Run the pipeline first: "

@@ -1,19 +1,34 @@
 import pandas as pd
 import streamlit as st
 
+from stocks_research.company.repository import CompanyProfileRepository
+from stocks_research.market import signals
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
+from stocks_research.ui.theme import verdict_label
 
 st.title("Overview")
+
+
+@st.cache_data(ttl=300)
+def _get_all_profiles() -> dict:
+    # Company profiles only change on a (much less frequent) manual pipeline run,
+    # so caching avoids re-querying all ~500 rows on every filter/selection rerun.
+    return CompanyProfileRepository().get_all_profiles()
+
 
 snapshots = SnapshotRepository().get_latest_snapshots()
 
 if not snapshots:
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
-    st.caption("Latest daily snapshot across your tracked tickers · tap a row to open its drill-down view.")
+    st.caption("Latest daily snapshot across your tracked tickers · click a ticker to open its drill-down view.")
 
-    df = pd.DataFrame([vars(s) for s in snapshots]).sort_values("ticker")
+    profiles = _get_all_profiles()
+    rows = [
+        {**vars(s), "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict} for s in snapshots
+    ]
+    df = pd.DataFrame(rows).sort_values("ticker")
     trend_counts = df["ma_trend"].value_counts()
 
     kpi_cols = st.columns(5)
@@ -28,10 +43,15 @@ else:
     )
 
     with st.container(border=True):
-        filter_cols = st.columns([2, 2])
+        filter_cols = st.columns([2, 2, 2])
         ticker_filter = filter_cols[0].text_input("Filter by ticker", placeholder="e.g. AAPL")
         trend_filter = filter_cols[1].multiselect(
             "Filter by MA trend", options=sorted(df["ma_trend"].unique()), default=[]
+        )
+        verdict_filter = filter_cols[2].multiselect(
+            "Filter by Buy Signal",
+            options=[signals.STRONG_BUY, signals.BUY, signals.HOLD, signals.AVOID, signals.INSUFFICIENT_DATA],
+            default=[],
         )
         quick_filter = st.segmented_control(
             "Quick filter",
@@ -44,6 +64,8 @@ else:
         df = df[df["ticker"].str.contains(ticker_filter, case=False)]
     if trend_filter:
         df = df[df["ma_trend"].isin(trend_filter)]
+    if verdict_filter:
+        df = df[df["buy_verdict"].isin(verdict_filter)]
     if quick_filter == "Flagged only":
         df = df[df["flagged"]]
     elif quick_filter == "Bearish + flagged":
@@ -58,8 +80,10 @@ else:
 
     TREND_ICON = {"bullish": "📈 Bullish", "bearish": "📉 Bearish", "neutral": "➖ Neutral"}
     display_df = df.copy()
+    display_df["ticker"] = "/ticker_detail?ticker=" + display_df["ticker"]
     display_df["flagged"] = display_df["flagged"].map({True: "🚩", False: ""})
     display_df["ma_trend"] = display_df["ma_trend"].map(TREND_ICON).fillna(display_df["ma_trend"])
+    display_df["buy_verdict"] = display_df["buy_verdict"].apply(verdict_label)
     display_df["volume_ratio"] = display_df["volume_ratio"].apply(
         lambda ratio: f"🔥 {ratio:.2f}" if ratio is not None and ratio >= 2 else ratio
     )
@@ -76,16 +100,15 @@ else:
     score_max = df["score"].max()
     score_max = float(score_max) if pd.notna(score_max) else 1.0
 
-    event = st.dataframe(
+    st.dataframe(
         styled_df,
         width="stretch",
         height=560,
         hide_index=True,
-        on_select="rerun",
-        selection_mode="single-row",
         column_order=[
             "ticker",
             "flagged",
+            "buy_verdict",
             "score",
             "ma_trend",
             "momentum_1d",
@@ -95,8 +118,9 @@ else:
             "commentary",
         ],
         column_config={
-            "ticker": st.column_config.TextColumn("Ticker", width="small"),
+            "ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"ticker=(\w+)"),
             "flagged": st.column_config.TextColumn("Flagged", width="small"),
+            "buy_verdict": st.column_config.TextColumn("Buy Signal"),
             "score": st.column_config.ProgressColumn(
                 "Score", format="%.2f", min_value=0, max_value=max(score_max, 1.0)
             ),
@@ -108,8 +132,3 @@ else:
             "commentary": st.column_config.TextColumn("AI Commentary", width="large"),
         },
     )
-
-    selected_rows = event.selection.rows if event and event.selection else []
-    if selected_rows:
-        st.session_state["selected_ticker"] = df.iloc[selected_rows[0]]["ticker"]
-        st.switch_page("ticker_detail.py")

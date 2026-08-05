@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS indicator_snapshots (
     volume bigint NOT NULL,
     volume_avg_20 numeric,
     volume_ratio numeric,
+    high_52w numeric,
+    pct_below_52w_high numeric,
     score numeric,
     flagged boolean NOT NULL DEFAULT false,
     commentary text,
@@ -29,18 +31,20 @@ ALTER_TABLE_SQL = """
 ALTER TABLE indicator_snapshots
     ADD COLUMN IF NOT EXISTS score numeric,
     ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false,
-    ADD COLUMN IF NOT EXISTS commentary text
+    ADD COLUMN IF NOT EXISTS commentary text,
+    ADD COLUMN IF NOT EXISTS high_52w numeric,
+    ADD COLUMN IF NOT EXISTS pct_below_52w_high numeric
 """
 
 UPSERT_SQL = """
 INSERT INTO indicator_snapshots (
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged, commentary
+    high_52w, pct_below_52w_high, score, flagged, commentary
 ) VALUES (
     %(ticker)s, %(date)s, %(close)s, %(momentum_1d)s, %(momentum_5d)s, %(momentum_20d)s,
     %(ma_50)s, %(ma_200)s, %(ma_trend)s, %(pct_above_ma50)s, %(volume)s, %(volume_avg_20)s, %(volume_ratio)s,
-    %(score)s, %(flagged)s, %(commentary)s
+    %(high_52w)s, %(pct_below_52w_high)s, %(score)s, %(flagged)s, %(commentary)s
 )
 ON CONFLICT (ticker, date) DO UPDATE SET
     close = EXCLUDED.close,
@@ -54,6 +58,8 @@ ON CONFLICT (ticker, date) DO UPDATE SET
     volume = EXCLUDED.volume,
     volume_avg_20 = EXCLUDED.volume_avg_20,
     volume_ratio = EXCLUDED.volume_ratio,
+    high_52w = EXCLUDED.high_52w,
+    pct_below_52w_high = EXCLUDED.pct_below_52w_high,
     score = EXCLUDED.score,
     flagged = EXCLUDED.flagged,
     commentary = EXCLUDED.commentary
@@ -63,7 +69,7 @@ LATEST_SNAPSHOTS_SQL = """
 SELECT DISTINCT ON (ticker)
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged, commentary
+    high_52w, pct_below_52w_high, score, flagged, commentary
 FROM indicator_snapshots
 ORDER BY ticker, date DESC
 """
@@ -72,7 +78,7 @@ TICKER_HISTORY_SQL = """
 SELECT
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged, commentary
+    high_52w, pct_below_52w_high, score, flagged, commentary
 FROM indicator_snapshots
 WHERE ticker = %(ticker)s
 ORDER BY date ASC
@@ -82,7 +88,7 @@ ALL_SNAPSHOTS_SQL = """
 SELECT
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
     ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-    score, flagged, commentary
+    high_52w, pct_below_52w_high, score, flagged, commentary
 FROM indicator_snapshots
 ORDER BY date DESC, ticker ASC
 """
@@ -134,7 +140,7 @@ class SnapshotRepository:
         (
             ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
             ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
-            score, flagged, commentary,
+            high_52w, pct_below_52w_high, score, flagged, commentary,
         ) = row
         as_float = lambda value: None if value is None else float(value)
         return IndicatorSnapshot(
@@ -151,6 +157,8 @@ class SnapshotRepository:
             volume=int(volume),
             volume_avg_20=as_float(volume_avg_20),
             volume_ratio=as_float(volume_ratio),
+            high_52w=as_float(high_52w),
+            pct_below_52w_high=as_float(pct_below_52w_high),
             score=as_float(score),
             flagged=bool(flagged),
             commentary=commentary,

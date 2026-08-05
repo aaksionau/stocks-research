@@ -43,6 +43,8 @@ def test_too_short_series_returns_none_instead_of_raising():
     assert snapshot.pct_above_ma50 is None
     assert snapshot.volume_avg_20 is None
     assert snapshot.volume_ratio is None
+    assert snapshot.high_52w is None
+    assert snapshot.pct_below_52w_high is None
 
 
 def test_bullish_crossover_when_ma50_above_ma200():
@@ -115,6 +117,26 @@ def test_indicator_history_last_row_matches_compute_indicators():
     assert last.volume == single.volume
     assert last.volume_avg_20 == pytest.approx(single.volume_avg_20)
     assert last.volume_ratio == pytest.approx(single.volume_ratio)
+    assert last.high_52w == single.high_52w
+    assert last.pct_below_52w_high == single.pct_below_52w_high
+
+
+def test_high_52w_uses_trailing_252_day_max():
+    closes = [100.0] * 200 + [150.0] + [90.0] * 51  # 252 days total, peak at position 200
+    volumes = [1_000_000] * 252
+    snapshot = engine.compute_indicators("TEST", build_frame(closes, volumes))
+
+    assert snapshot.high_52w == pytest.approx(150.0)
+    assert snapshot.pct_below_52w_high == pytest.approx((150.0 - 90.0) / 150.0 * 100)
+
+
+def test_high_52w_is_none_with_insufficient_history():
+    closes = [100.0] * 251
+    volumes = [1_000_000] * 251
+    snapshot = engine.compute_indicators("TEST", build_frame(closes, volumes))
+
+    assert snapshot.high_52w is None
+    assert snapshot.pct_below_52w_high is None
 
 
 def test_indicator_history_early_rows_have_none_indicators():
@@ -131,3 +153,5 @@ def test_indicator_history_early_rows_have_none_indicators():
     assert first.ma_trend == "neutral"
     assert first.volume_avg_20 is None
     assert first.volume_ratio is None
+    assert first.high_52w is None
+    assert first.pct_below_52w_high is None
