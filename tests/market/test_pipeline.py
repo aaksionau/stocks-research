@@ -3,6 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
+from stocks_research.company.profile import CompanyProfile
 from stocks_research.market import pipeline
 from stocks_research.market.indicators import IndicatorSnapshot
 
@@ -25,6 +26,46 @@ def make_snapshot(ticker: str) -> IndicatorSnapshot:
     )
 
 
+def make_strong_buy_snapshot(ticker: str) -> IndicatorSnapshot:
+    return IndicatorSnapshot(
+        ticker=ticker,
+        date=date(2020, 1, 1),
+        close=100.0,
+        momentum_1d=None,
+        momentum_5d=None,
+        momentum_20d=None,
+        ma_50=98.0,
+        ma_200=90.0,
+        ma_trend="bullish",
+        pct_above_ma50=2.0,
+        volume=1_000_000,
+        volume_avg_20=None,
+        volume_ratio=None,
+        pct_below_52w_high=10.0,
+    )
+
+
+def make_strong_buy_profile(ticker: str) -> CompanyProfile:
+    return CompanyProfile(
+        ticker=ticker,
+        name=None,
+        sector=None,
+        industry=None,
+        description=None,
+        website=None,
+        employees=None,
+        country=None,
+        exchange=None,
+        market_cap=None,
+        trailing_pe=15.0,
+        peg_ratio=1.0,
+        return_on_equity=0.2,
+        profit_margins=0.1,
+        debt_to_equity=50.0,
+        earnings_growth=0.1,
+    )
+
+
 class FakeMarketDataClient:
     def __init__(self, histories: dict[str, pd.DataFrame]):
         self._histories = histories
@@ -34,12 +75,15 @@ class FakeMarketDataClient:
 
 
 class FakeIndicatorEngine:
-    def __init__(self, failing_tickers: set[str] = frozenset()):
+    def __init__(self, failing_tickers: set[str] = frozenset(), strong_buy_tickers: set[str] = frozenset()):
         self._failing_tickers = failing_tickers
+        self._strong_buy_tickers = strong_buy_tickers
 
     def compute_indicators(self, ticker: str, history: pd.DataFrame) -> IndicatorSnapshot:
         if ticker in self._failing_tickers:
             raise ValueError(f"bad data for {ticker}")
+        if ticker in self._strong_buy_tickers:
+            return make_strong_buy_snapshot(ticker)
         return make_snapshot(ticker)
 
     def compute_indicator_history(self, ticker: str, history: pd.DataFrame) -> list[IndicatorSnapshot]:
@@ -58,6 +102,21 @@ class FakeCommentaryClient:
         if ticker in self._failing_tickers:
             raise ValueError(f"Foundry unreachable for {ticker}")
         return f"commentary for {ticker}"
+
+
+class FakeFlagger:
+    """Flags nothing, so tests can isolate the buy-verdict path from the real momentum ranking."""
+
+    def rank(self, snapshots: list[IndicatorSnapshot]) -> list:
+        return []
+
+
+class FakeCompanyProfileRepository:
+    def __init__(self, profiles: dict[str, CompanyProfile] | None = None):
+        self._profiles = profiles or {}
+
+    def get_all_profiles(self) -> dict[str, CompanyProfile]:
+        return self._profiles
 
 
 class FakeSnapshotRepository:
@@ -93,6 +152,7 @@ def test_per_ticker_indicator_failure_is_skipped_not_fatal():
         engine=FakeIndicatorEngine(failing_tickers={"BADCO"}),
         commentary_client=FakeCommentaryClient(),
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     assert [s.ticker for s in repository.saved] == ["AAPL"]
@@ -107,6 +167,7 @@ def test_backfills_from_fetched_history_when_no_snapshots_exist():
         engine=FakeIndicatorEngine(),
         commentary_client=FakeCommentaryClient(),
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     # 2 backfilled rows per ticker from compute_indicator_history(), plus 1 today's row from compute_indicators().
@@ -123,6 +184,7 @@ def test_backfills_only_tickers_missing_snapshots():
         engine=FakeIndicatorEngine(),
         commentary_client=FakeCommentaryClient(),
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     # AAPL and MSFT already have history, so only today's row is saved for them.
@@ -141,6 +203,7 @@ def test_no_price_history_at_all_raises_pipeline_failed_error():
             engine=FakeIndicatorEngine(),
             commentary_client=FakeCommentaryClient(),
             repository=repository,
+            profile_repository=FakeCompanyProfileRepository(),
         )
 
 
@@ -154,6 +217,7 @@ def test_repository_failure_propagates_and_aborts_run():
             engine=FakeIndicatorEngine(),
             commentary_client=FakeCommentaryClient(),
             repository=repository,
+            profile_repository=FakeCompanyProfileRepository(),
         )
 
 
@@ -167,6 +231,7 @@ def test_flagged_tickers_get_commentary_persisted_on_snapshot():
         engine=FakeIndicatorEngine(),
         commentary_client=commentary_client,
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     saved_by_ticker = {s.ticker: s for s in repository.saved}
@@ -185,6 +250,7 @@ def test_commentary_failure_is_skipped_not_fatal():
         engine=FakeIndicatorEngine(),
         commentary_client=commentary_client,
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     saved_by_ticker = {s.ticker: s for s in repository.saved}
@@ -203,6 +269,7 @@ def test_unflagged_tickers_are_not_sent_for_commentary():
         engine=FakeIndicatorEngine(),
         commentary_client=commentary_client,
         repository=repository,
+        profile_repository=FakeCompanyProfileRepository(),
     )
 
     flagged = [s for s in repository.saved if s.flagged]
@@ -210,3 +277,24 @@ def test_unflagged_tickers_are_not_sent_for_commentary():
     assert unflagged, "expected some tickers to be unflagged with 35 candidates and a top-30 cutoff"
     assert set(commentary_client.calls) == {s.ticker for s in flagged}
     assert all(s.commentary is None for s in unflagged)
+
+
+def test_unflagged_strong_buy_ticker_still_gets_commentary():
+    histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
+    repository = FakeSnapshotRepository(existing_tickers={"AAPL", "MSFT"})
+    commentary_client = FakeCommentaryClient()
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(strong_buy_tickers={"AAPL"}),
+        flagger=FakeFlagger(),
+        commentary_client=commentary_client,
+        repository=repository,
+        profile_repository=FakeCompanyProfileRepository({"AAPL": make_strong_buy_profile("AAPL")}),
+    )
+
+    saved_by_ticker = {s.ticker: s for s in repository.saved}
+    assert saved_by_ticker["AAPL"].flagged is False
+    assert saved_by_ticker["AAPL"].commentary == "commentary for AAPL"
+    assert saved_by_ticker["MSFT"].flagged is False
+    assert saved_by_ticker["MSFT"].commentary is None
