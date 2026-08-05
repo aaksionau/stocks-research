@@ -23,6 +23,15 @@ class FakeYfTicker:
             "country": "United States",
             "exchange": "NMS",
             "marketCap": 3_000_000_000_000,
+            "trailingPE": 28.5,
+            "forwardPE": 25.1,
+            "pegRatio": 1.9,
+            "priceToBook": 45.2,
+            "returnOnEquity": 1.5,
+            "profitMargins": 0.25,
+            "debtToEquity": 150.0,
+            "earningsGrowth": 0.08,
+            "revenueGrowth": 0.05,
         }
 
 
@@ -45,6 +54,15 @@ def test_fetch_profiles_maps_info_fields():
     assert profile.country == "United States"
     assert profile.exchange == "NMS"
     assert profile.market_cap == 3_000_000_000_000
+    assert profile.trailing_pe == 28.5
+    assert profile.forward_pe == 25.1
+    assert profile.peg_ratio == 1.9
+    assert profile.price_to_book == 45.2
+    assert profile.return_on_equity == 1.5
+    assert profile.profit_margins == 0.25
+    assert profile.debt_to_equity == 150.0
+    assert profile.earnings_growth == 0.08
+    assert profile.revenue_growth == 0.05
 
 
 def test_failed_ticker_fetch_is_skipped_not_fatal():

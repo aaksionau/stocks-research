@@ -7,6 +7,7 @@ MOMENTUM_WINDOWS = (1, 5, 20)
 MA_SHORT_WINDOW = 50
 MA_LONG_WINDOW = 200
 VOLUME_WINDOW = 20
+FIFTY_TWO_WEEK_WINDOW = 252
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,8 @@ class IndicatorSnapshot:
     volume: int
     volume_avg_20: float | None
     volume_ratio: float | None
+    high_52w: float | None = None
+    pct_below_52w_high: float | None = None
     score: float | None = None
     flagged: bool = False
     commentary: str | None = None
@@ -56,6 +59,11 @@ class IndicatorEngine:
             else None
         )
 
+        high_52w = self._rolling_max(close, FIFTY_TWO_WEEK_WINDOW)
+        pct_below_52w_high = (
+            (high_52w - last_close) / high_52w * 100 if high_52w is not None else None
+        )
+
         return IndicatorSnapshot(
             ticker=ticker,
             date=last_date,
@@ -70,6 +78,8 @@ class IndicatorEngine:
             volume=last_volume,
             volume_avg_20=volume_avg_20,
             volume_ratio=volume_ratio,
+            high_52w=high_52w,
+            pct_below_52w_high=pct_below_52w_high,
         )
 
     def compute_indicator_history(self, ticker: str, price_history: pd.DataFrame) -> list[IndicatorSnapshot]:
@@ -86,6 +96,9 @@ class IndicatorEngine:
 
         volume_avg_20 = self._sma_series(volume, VOLUME_WINDOW)
         volume_ratio = (volume / volume_avg_20).mask(volume_avg_20 == 0)
+
+        high_52w = self._rolling_max_series(close, FIFTY_TWO_WEEK_WINDOW)
+        pct_below_52w_high = ((high_52w - close) / high_52w * 100).mask(high_52w == 0)
 
         snapshots = []
         for position, timestamp in enumerate(price_history.index):
@@ -106,6 +119,8 @@ class IndicatorEngine:
                     volume=int(volume.iloc[position]),
                     volume_avg_20=self._to_optional(volume_avg_20.iloc[position]),
                     volume_ratio=self._to_optional(volume_ratio.iloc[position]),
+                    high_52w=self._to_optional(high_52w.iloc[position]),
+                    pct_below_52w_high=self._to_optional(pct_below_52w_high.iloc[position]),
                 )
             )
         return snapshots
@@ -133,6 +148,16 @@ class IndicatorEngine:
     @staticmethod
     def _sma_series(series: pd.Series, window: int) -> pd.Series:
         return series.rolling(window=window, min_periods=window).mean()
+
+    @staticmethod
+    def _rolling_max(series: pd.Series, window: int) -> float | None:
+        if len(series) < window:
+            return None
+        return float(series.iloc[-window:].max())
+
+    @staticmethod
+    def _rolling_max_series(series: pd.Series, window: int) -> pd.Series:
+        return series.rolling(window=window, min_periods=window).max()
 
     @staticmethod
     def _to_optional(value: float) -> float | None:

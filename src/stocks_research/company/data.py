@@ -35,4 +35,13 @@ class CompanyProfileClient:
             country=info.get("country"),
             exchange=info.get("exchange"),
             market_cap=info.get("marketCap"),
+            trailing_pe=info.get("trailingPE"),
+            forward_pe=info.get("forwardPE"),
+            peg_ratio=info.get("pegRatio"),
+            price_to_book=info.get("priceToBook"),
+            return_on_equity=info.get("returnOnEquity"),
+            profit_margins=info.get("profitMargins"),
+            debt_to_equity=info.get("debtToEquity"),
+            earnings_growth=info.get("earningsGrowth"),
+            revenue_growth=info.get("revenueGrowth"),
         )

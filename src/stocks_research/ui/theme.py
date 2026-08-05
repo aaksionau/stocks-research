@@ -45,6 +45,14 @@ _TREND_BADGES = {
     "neutral": ("Neutral", ":material/trending_flat:", "gray"),
 }
 
+_VERDICT_BADGES = {
+    "Strong Buy": (":material/thumb_up:", "green"),
+    "Buy": (":material/thumb_up:", "blue"),
+    "Hold": (":material/pause_circle:", "orange"),
+    "Avoid": (":material/thumb_down:", "red"),
+    "Insufficient Data": (":material/help:", "gray"),
+}
+
 
 def configure_app() -> None:
     """Set page config and inject shared styles. Call once, first, from app.py."""
@@ -55,3 +63,8 @@ def configure_app() -> None:
 def trend_badge(trend: str) -> None:
     label, icon, color = _TREND_BADGES.get(trend, (trend.title(), None, "gray"))
     st.badge(label, icon=icon, color=color)
+
+
+def verdict_badge(verdict: str) -> None:
+    icon, color = _VERDICT_BADGES.get(verdict, (None, "gray"))
+    st.badge(verdict, icon=icon, color=color)

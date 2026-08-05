@@ -1,6 +1,8 @@
 import pandas as pd
 import streamlit as st
 
+from stocks_research.company.repository import CompanyProfileRepository
+from stocks_research.market import signals
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 
@@ -13,7 +15,11 @@ if not snapshots:
 else:
     st.caption("Latest daily snapshot across your tracked tickers · tap a row to open its drill-down view.")
 
-    df = pd.DataFrame([vars(s) for s in snapshots]).sort_values("ticker")
+    profiles = CompanyProfileRepository().get_all_profiles()
+    rows = [
+        {**vars(s), "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict} for s in snapshots
+    ]
+    df = pd.DataFrame(rows).sort_values("ticker")
     trend_counts = df["ma_trend"].value_counts()
 
     kpi_cols = st.columns(5)
@@ -28,10 +34,15 @@ else:
     )
 
     with st.container(border=True):
-        filter_cols = st.columns([2, 2])
+        filter_cols = st.columns([2, 2, 2])
         ticker_filter = filter_cols[0].text_input("Filter by ticker", placeholder="e.g. AAPL")
         trend_filter = filter_cols[1].multiselect(
             "Filter by MA trend", options=sorted(df["ma_trend"].unique()), default=[]
+        )
+        verdict_filter = filter_cols[2].multiselect(
+            "Filter by Buy Signal",
+            options=[signals.STRONG_BUY, signals.BUY, signals.HOLD, signals.AVOID, signals.INSUFFICIENT_DATA],
+            default=[],
         )
         quick_filter = st.segmented_control(
             "Quick filter",
@@ -44,6 +55,8 @@ else:
         df = df[df["ticker"].str.contains(ticker_filter, case=False)]
     if trend_filter:
         df = df[df["ma_trend"].isin(trend_filter)]
+    if verdict_filter:
+        df = df[df["buy_verdict"].isin(verdict_filter)]
     if quick_filter == "Flagged only":
         df = df[df["flagged"]]
     elif quick_filter == "Bearish + flagged":
@@ -57,9 +70,17 @@ else:
     )
 
     TREND_ICON = {"bullish": "📈 Bullish", "bearish": "📉 Bearish", "neutral": "➖ Neutral"}
+    VERDICT_ICON = {
+        signals.STRONG_BUY: "🟢 Strong Buy",
+        signals.BUY: "🔵 Buy",
+        signals.HOLD: "🟡 Hold",
+        signals.AVOID: "🔴 Avoid",
+        signals.INSUFFICIENT_DATA: "⚪ Insufficient Data",
+    }
     display_df = df.copy()
     display_df["flagged"] = display_df["flagged"].map({True: "🚩", False: ""})
     display_df["ma_trend"] = display_df["ma_trend"].map(TREND_ICON).fillna(display_df["ma_trend"])
+    display_df["buy_verdict"] = display_df["buy_verdict"].map(VERDICT_ICON).fillna(display_df["buy_verdict"])
     display_df["volume_ratio"] = display_df["volume_ratio"].apply(
         lambda ratio: f"🔥 {ratio:.2f}" if ratio is not None and ratio >= 2 else ratio
     )
@@ -86,6 +107,7 @@ else:
         column_order=[
             "ticker",
             "flagged",
+            "buy_verdict",
             "score",
             "ma_trend",
             "momentum_1d",
@@ -97,6 +119,7 @@ else:
         column_config={
             "ticker": st.column_config.TextColumn("Ticker", width="small"),
             "flagged": st.column_config.TextColumn("Flagged", width="small"),
+            "buy_verdict": st.column_config.TextColumn("Buy Signal"),
             "score": st.column_config.ProgressColumn(
                 "Score", format="%.2f", min_value=0, max_value=max(score_max, 1.0)
             ),
