@@ -8,7 +8,12 @@ from stocks_research.news.repository import NewsRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.news.trends import summarize_ticker_trend, windowed_articles
 from stocks_research.ui.news_widgets import days_window_slider
-from stocks_research.ui.theme import sentiment_direction_label, trend_badge, verdict_badge
+from stocks_research.ui.theme import (
+    sentiment_direction_label,
+    trend_badge,
+    verdict_badge,
+)
+from stocks_research.watchlist.repository import WatchlistRepository
 
 repository = SnapshotRepository()
 tickers = sorted(s.ticker for s in repository.get_latest_snapshots())
@@ -33,7 +38,9 @@ else:
     st.title(f"{profile.name} ({ticker})" if profile and profile.name else ticker)
     news_repository = NewsRepository()
     subscription_repository = NewsSubscriptionRepository()
+    watchlist_repository = WatchlistRepository()
     is_subscribed = subscription_repository.is_subscribed(ticker)
+    is_following = watchlist_repository.is_following(ticker)
 
     with st.container(border=True):
         header_cols = st.columns([2, 1.2, 1, 1, 1])
@@ -42,6 +49,10 @@ else:
             trend_badge(latest["ma_trend"])
             if latest["flagged"]:
                 st.badge("Flagged", icon=":material/flag:", color="orange")
+            following = st.toggle("⭐ Follow", value=is_following, key=f"follow_toggle_{ticker}")
+            if following != is_following:
+                (watchlist_repository.follow if following else watchlist_repository.unfollow)(ticker)
+                is_following = following
             track_news = st.toggle("📰 Track news", value=is_subscribed, key=f"news_toggle_{ticker}")
             if track_news != is_subscribed:
                 (subscription_repository.subscribe if track_news else subscription_repository.unsubscribe)(ticker)
