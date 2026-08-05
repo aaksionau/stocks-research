@@ -10,12 +10,11 @@ from stocks_research.news.trends import summarize_ticker_trend, windowed_article
 from stocks_research.ui.news_widgets import days_window_slider
 from stocks_research.ui.theme import sentiment_direction_label, trend_badge, verdict_badge
 
-st.title("Ticker Detail")
-
 repository = SnapshotRepository()
 tickers = sorted(s.ticker for s in repository.get_latest_snapshots())
 
 if not tickers:
+    st.title("Ticker Detail")
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
 else:
     preselected = st.session_state.get("selected_ticker") or st.query_params.get("ticker")
@@ -31,6 +30,7 @@ else:
     latest = df.iloc[-1]
 
     profile = CompanyProfileRepository().get_profile(ticker)
+    st.title(f"{profile.name} ({ticker})" if profile and profile.name else ticker)
     news_repository = NewsRepository()
     subscription_repository = NewsSubscriptionRepository()
     is_subscribed = subscription_repository.is_subscribed(ticker)
