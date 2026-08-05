@@ -29,13 +29,21 @@ else:
         {**vars(s), "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict} for s in snapshots
     ]
     df = pd.DataFrame(rows).sort_values("ticker")
-    trend_counts = df["ma_trend"].value_counts()
+    verdict_options = [signals.STRONG_BUY, signals.BUY, signals.HOLD, signals.AVOID, signals.INSUFFICIENT_DATA]
+    verdict_rank = {verdict: i for i, verdict in enumerate(verdict_options)}
+    verdict_counts = df["buy_verdict"].value_counts()
 
     kpi_cols = st.columns(5)
     kpi_cols[0].metric("Tickers Tracked", len(df))
-    kpi_cols[1].metric("Flagged", int(df["flagged"].sum()))
-    kpi_cols[2].metric("Bullish", int(trend_counts.get("bullish", 0)))
-    kpi_cols[3].metric("Bearish", int(trend_counts.get("bearish", 0)))
+    kpi_cols[1].metric(
+        "Strong Buy", int(verdict_counts.get(signals.STRONG_BUY, 0)), help="All core checks pass, entry timing too."
+    )
+    kpi_cols[2].metric(
+        "Buy", int(verdict_counts.get(signals.BUY, 0)), help="Most core checks pass -- worth a closer look."
+    )
+    kpi_cols[3].metric(
+        "Flagged", int(df["flagged"].sum()), help="Unusual momentum/volume activity -- not itself a buy signal."
+    )
     kpi_cols[4].metric(
         "News Tracked",
         NewsSubscriptionRepository().get_subscribed_ticker_count(),
@@ -50,14 +58,15 @@ else:
         )
         verdict_filter = filter_cols[2].multiselect(
             "Filter by Buy Signal",
-            options=[signals.STRONG_BUY, signals.BUY, signals.HOLD, signals.AVOID, signals.INSUFFICIENT_DATA],
+            options=verdict_options,
             default=[],
         )
         quick_filter = st.segmented_control(
             "Quick filter",
-            options=["All", "Flagged only", "Bearish + flagged"],
+            options=["All", "Buy candidates", "Strong Buy only", "Flagged only"],
             default="All",
             required=True,
+            help="\"Buy candidates\" = Strong Buy + Buy verdicts.",
         )
 
     if ticker_filter:
@@ -66,15 +75,19 @@ else:
         df = df[df["ma_trend"].isin(trend_filter)]
     if verdict_filter:
         df = df[df["buy_verdict"].isin(verdict_filter)]
-    if quick_filter == "Flagged only":
+    if quick_filter == "Buy candidates":
+        df = df[df["buy_verdict"].isin([signals.STRONG_BUY, signals.BUY])]
+    elif quick_filter == "Strong Buy only":
+        df = df[df["buy_verdict"] == signals.STRONG_BUY]
+    elif quick_filter == "Flagged only":
         df = df[df["flagged"]]
-    elif quick_filter == "Bearish + flagged":
-        df = df[df["flagged"] & (df["ma_trend"] == "bearish")]
 
-    df = df.sort_values(["flagged", "score"], ascending=[False, False])
+    df = df.assign(_verdict_rank=df["buy_verdict"].map(verdict_rank))
+    df = df.sort_values(["_verdict_rank", "score"], ascending=[True, False]).drop(columns="_verdict_rank")
 
+    buy_candidates_in_view = int(df["buy_verdict"].isin([signals.STRONG_BUY, signals.BUY]).sum())
     st.caption(
-        f"{len(df)} of {len(snapshots)} tickers shown ({int(df['flagged'].sum())} flagged in view) · "
+        f"{len(df)} of {len(snapshots)} tickers shown ({buy_candidates_in_view} buy candidates in view) · "
         "full history and price charts live on the Ticker Detail page."
     )
 
@@ -107,8 +120,8 @@ else:
         hide_index=True,
         column_order=[
             "ticker",
-            "flagged",
             "buy_verdict",
+            "flagged",
             "score",
             "ma_trend",
             "momentum_1d",
@@ -119,10 +132,18 @@ else:
         ],
         column_config={
             "ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"ticker=(\w+)"),
-            "flagged": st.column_config.TextColumn("Flagged", width="small"),
-            "buy_verdict": st.column_config.TextColumn("Buy Signal"),
+            "buy_verdict": st.column_config.TextColumn(
+                "Buy Signal", help="Rule-based long-term buy/avoid verdict -- see Ticker Detail for the checks."
+            ),
+            "flagged": st.column_config.TextColumn(
+                "Flagged", width="small", help="Unusual momentum/volume activity, not a buy signal."
+            ),
             "score": st.column_config.ProgressColumn(
-                "Score", format="%.2f", min_value=0, max_value=max(score_max, 1.0)
+                "Momentum Score",
+                format="%.2f",
+                min_value=0,
+                max_value=max(score_max, 1.0),
+                help="Momentum/volume anomaly score used for flagging -- only set for flagged tickers.",
             ),
             "ma_trend": st.column_config.TextColumn("MA Trend"),
             "momentum_1d": st.column_config.NumberColumn("1D %", format="%.2f"),
