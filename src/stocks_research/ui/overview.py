@@ -7,9 +7,6 @@ from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.ui.theme import verdict_label
 
-st.title("Overview")
-
-
 @st.cache_data(ttl=300)
 def _get_all_profiles() -> dict:
     # Company profiles only change on a (much less frequent) manual pipeline run,
