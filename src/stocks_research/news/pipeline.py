@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from stocks_research.news.data import NewsClient
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.sentiment import NewsSentimentClient
+from stocks_research.news.subscriptions import NewsSubscriptionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +16,18 @@ def run(
     news_client: NewsClient | None = None,
     sentiment_client: NewsSentimentClient | None = None,
     repository: NewsRepository | None = None,
+    subscription_repository: NewsSubscriptionRepository | None = None,
 ) -> None:
     news_client = news_client or NewsClient()
     sentiment_client = sentiment_client or NewsSentimentClient()
     repository = repository or NewsRepository()
+    subscription_repository = subscription_repository or NewsSubscriptionRepository()
 
     # Postgres unreachable raises here and aborts the run before any fetching happens.
     repository.ensure_schema()
+    subscription_repository.ensure_schema()
 
-    tickers = repository.get_subscribed_tickers()
+    tickers = subscription_repository.get_subscribed_tickers()
     if not tickers:
         logger.info("No tickers subscribed for news tracking; skipping fetch.")
         return

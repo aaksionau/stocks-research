@@ -42,17 +42,13 @@ class FakeNewsSentimentClient:
 class FakeNewsRepository:
     """Fake standing in for Postgres: fetched articles land straight in `saved_articles`, mirroring the real repo."""
 
-    def __init__(self, subscribed_tickers: list[str] | None = None):
+    def __init__(self):
         self.saved_articles: list[NewsArticle] = []
         self.saved_scores: list[NewsArticle] = []
         self.schema_ensured = False
-        self._subscribed_tickers = subscribed_tickers if subscribed_tickers is not None else ["AAPL", "MSFT"]
 
     def ensure_schema(self) -> None:
         self.schema_ensured = True
-
-    def get_subscribed_tickers(self) -> list[str]:
-        return self._subscribed_tickers
 
     def save_articles(self, articles: list[NewsArticle]) -> None:
         self.saved_articles.extend(articles)
@@ -67,27 +63,45 @@ class FakeNewsRepository:
         self.saved_scores.extend(articles)
 
 
+class FakeSubscriptionRepository:
+    """Fake standing in for Postgres subscription storage."""
+
+    def __init__(self, subscribed_tickers: list[str] | None = None):
+        self.schema_ensured = False
+        self._subscribed_tickers = subscribed_tickers if subscribed_tickers is not None else ["AAPL", "MSFT"]
+
+    def ensure_schema(self) -> None:
+        self.schema_ensured = True
+
+    def get_subscribed_tickers(self) -> list[str]:
+        return self._subscribed_tickers
+
+
 def test_run_ensures_schema_before_fetching():
     repository = FakeNewsRepository()
+    subscription_repository = FakeSubscriptionRepository()
 
     news_pipeline.run(
         news_client=FakeNewsClient([]),
         sentiment_client=FakeNewsSentimentClient(),
         repository=repository,
+        subscription_repository=subscription_repository,
     )
 
     assert repository.schema_ensured is True
+    assert subscription_repository.schema_ensured is True
 
 
 def test_run_fetches_and_saves_articles_for_subscribed_tickers():
     articles = [make_article("AAPL"), make_article("MSFT")]
-    repository = FakeNewsRepository(subscribed_tickers=["AAPL", "MSFT"])
+    repository = FakeNewsRepository()
     news_client = FakeNewsClient(articles)
 
     news_pipeline.run(
         news_client=news_client,
         sentiment_client=FakeNewsSentimentClient(scores_by_ticker={"AAPL": [0.1], "MSFT": [0.2]}),
         repository=repository,
+        subscription_repository=FakeSubscriptionRepository(subscribed_tickers=["AAPL", "MSFT"]),
     )
 
     assert repository.saved_articles == articles
@@ -96,7 +110,7 @@ def test_run_fetches_and_saves_articles_for_subscribed_tickers():
 
 
 def test_run_with_no_subscribed_tickers_skips_fetch():
-    repository = FakeNewsRepository(subscribed_tickers=[])
+    repository = FakeNewsRepository()
     news_client = FakeNewsClient([make_article("AAPL")])
     sentiment_client = FakeNewsSentimentClient()
 
@@ -104,6 +118,7 @@ def test_run_with_no_subscribed_tickers_skips_fetch():
         news_client=news_client,
         sentiment_client=sentiment_client,
         repository=repository,
+        subscription_repository=FakeSubscriptionRepository(subscribed_tickers=[]),
     )
 
     assert repository.schema_ensured is True
@@ -121,6 +136,7 @@ def test_run_scores_newly_fetched_articles_in_a_single_batched_call():
         news_client=FakeNewsClient(articles),
         sentiment_client=sentiment_client,
         repository=repository,
+        subscription_repository=FakeSubscriptionRepository(),
     )
 
     assert [a.sentiment_score for a in repository.saved_scores] == [0.5, -0.1]
@@ -138,6 +154,7 @@ def test_run_with_no_articles_fetched_makes_no_scoring_calls():
         news_client=FakeNewsClient([]),
         sentiment_client=sentiment_client,
         repository=repository,
+        subscription_repository=FakeSubscriptionRepository(),
     )
 
     assert repository.saved_articles == []
@@ -156,6 +173,7 @@ def test_run_skips_failing_ticker_day_scoring_batch_not_fatal():
         news_client=FakeNewsClient(articles),
         sentiment_client=sentiment_client,
         repository=repository,
+        subscription_repository=FakeSubscriptionRepository(),
     )
 
     # Both articles were still fetched and persisted; only AAPL's scoring failed.

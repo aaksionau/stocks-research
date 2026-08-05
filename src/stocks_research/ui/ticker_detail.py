@@ -4,6 +4,7 @@ import streamlit as st
 from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
+from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.news.trends import DEFAULT_WINDOW_DAYS, summarize_ticker_trend, windowed_articles
 from stocks_research.ui.theme import trend_badge
 
@@ -27,7 +28,8 @@ else:
     latest = df.iloc[-1]
 
     news_repository = NewsRepository()
-    is_subscribed = ticker in news_repository.get_subscribed_tickers()
+    subscription_repository = NewsSubscriptionRepository()
+    is_subscribed = subscription_repository.is_subscribed(ticker)
 
     with st.container(border=True):
         header_cols = st.columns([2, 1.2, 1, 1, 1])
@@ -38,11 +40,8 @@ else:
                 st.badge("Flagged", icon=":material/flag:", color="orange")
             track_news = st.toggle("📰 Track news", value=is_subscribed, key=f"news_toggle_{ticker}")
             if track_news != is_subscribed:
-                if track_news:
-                    news_repository.subscribe(ticker)
-                else:
-                    news_repository.unsubscribe(ticker)
-                st.rerun()
+                (subscription_repository.subscribe if track_news else subscription_repository.unsubscribe)(ticker)
+                is_subscribed = track_news
         header_cols[1].metric(
             "Close",
             f"${latest['close']:,.2f}",

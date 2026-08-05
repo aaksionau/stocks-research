@@ -24,27 +24,6 @@ ALTER TABLE news_articles
     ADD COLUMN IF NOT EXISTS sentiment_score double precision
 """
 
-CREATE_SUBSCRIPTIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS news_subscriptions (
-    ticker text PRIMARY KEY,
-    subscribed_at timestamptz NOT NULL DEFAULT now()
-)
-"""
-
-SUBSCRIBE_SQL = """
-INSERT INTO news_subscriptions (ticker)
-VALUES (%(ticker)s)
-ON CONFLICT (ticker) DO NOTHING
-"""
-
-UNSUBSCRIBE_SQL = """
-DELETE FROM news_subscriptions WHERE ticker = %(ticker)s
-"""
-
-SUBSCRIBED_TICKERS_SQL = """
-SELECT ticker FROM news_subscriptions ORDER BY ticker
-"""
-
 UPSERT_SQL = """
 INSERT INTO news_articles (ticker, url, headline, summary, source, published_at)
 VALUES (%(ticker)s, %(url)s, %(headline)s, %(summary)s, %(source)s, %(published_at)s)
@@ -92,20 +71,6 @@ class NewsRepository:
         with psycopg.connect(self._database_url) as conn:
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(ALTER_TABLE_SQL)
-            conn.execute(CREATE_SUBSCRIPTIONS_TABLE_SQL)
-
-    def subscribe(self, ticker: str) -> None:
-        with psycopg.connect(self._database_url) as conn:
-            conn.execute(SUBSCRIBE_SQL, {"ticker": ticker})
-
-    def unsubscribe(self, ticker: str) -> None:
-        with psycopg.connect(self._database_url) as conn:
-            conn.execute(UNSUBSCRIBE_SQL, {"ticker": ticker})
-
-    def get_subscribed_tickers(self) -> list[str]:
-        with psycopg.connect(self._database_url) as conn:
-            rows = conn.execute(SUBSCRIBED_TICKERS_SQL).fetchall()
-        return [row[0] for row in rows]
 
     def save_articles(self, articles: list[NewsArticle]) -> None:
         if not articles:

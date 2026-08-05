@@ -2,12 +2,11 @@ import pandas as pd
 import streamlit as st
 
 from stocks_research.market.repository import SnapshotRepository
-from stocks_research.news.repository import NewsRepository
+from stocks_research.news.subscriptions import NewsSubscriptionRepository
 
 st.title("Overview")
 
 snapshots = SnapshotRepository().get_latest_snapshots()
-news_subscription_count = len(NewsRepository().get_subscribed_tickers())
 
 if not snapshots:
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
@@ -24,7 +23,7 @@ else:
     kpi_cols[3].metric("Bearish", int(trend_counts.get("bearish", 0)))
     kpi_cols[4].metric(
         "News Tracked",
-        news_subscription_count,
+        NewsSubscriptionRepository().get_subscribed_ticker_count(),
         help="Tickers subscribed for news sentiment fetching -- keeps an eye on API spend.",
     )
 
