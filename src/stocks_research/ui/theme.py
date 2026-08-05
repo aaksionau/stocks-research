@@ -53,6 +53,12 @@ _VERDICT_BADGES = {
     "Insufficient Data": ("⚪", ":material/help:", "gray"),
 }
 
+_SENTIMENT_DIRECTION_LABELS = {
+    "rising": "📈 Rising",
+    "falling": "📉 Falling",
+    "flat": "➡️ Flat",
+}
+
 
 def configure_app() -> None:
     """Set page config and inject shared styles. Call once, first, from app.py."""
@@ -74,3 +80,8 @@ def verdict_label(verdict: str) -> str:
     """Plain-text emoji + verdict, for contexts (e.g. dataframe cells) that can't render st.badge."""
     emoji, _icon, _color = _VERDICT_BADGES.get(verdict, ("⚪", None, "gray"))
     return f"{emoji} {verdict}"
+
+
+def sentiment_direction_label(direction: str) -> str:
+    """Plain-text emoji + direction, for contexts (e.g. dataframe cells) that can't render st.badge."""
+    return _SENTIMENT_DIRECTION_LABELS.get(direction, direction.title())
