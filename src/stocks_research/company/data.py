@@ -6,6 +6,22 @@ from stocks_research.company.profile import CompanyProfile
 
 logger = logging.getLogger(__name__)
 
+# Fields sourced from Yahoo's financialData/defaultKeyStatistics modules. These have been
+# observed to drop out of `info` under load while the descriptive fields (name/sector/market_cap,
+# sourced from a different module) still come through -- a partial-payload failure mode that
+# looks like success (non-empty `info`) but leaves every fundamentals check undecidable downstream.
+FINANCIAL_RATIO_KEYS = (
+    "trailingPE",
+    "forwardPE",
+    "pegRatio",
+    "priceToBook",
+    "returnOnEquity",
+    "profitMargins",
+    "debtToEquity",
+    "earningsGrowth",
+    "revenueGrowth",
+)
+
 
 class CompanyProfileClient:
     def fetch_profiles(self, tickers: list[str]) -> dict[str, CompanyProfile]:
@@ -19,6 +35,12 @@ class CompanyProfileClient:
             if not info:
                 logger.warning("No company profile info returned for %s", ticker)
                 continue
+            if all(info.get(key) is None for key in FINANCIAL_RATIO_KEYS):
+                logger.warning(
+                    "Profile info for %s has no financial ratios (PE/PEG/ROE/margin/debt/growth) -- "
+                    "Yahoo likely returned a partial payload for this fetch.",
+                    ticker,
+                )
             profiles[ticker] = self._to_profile(ticker, info)
         return profiles
 
