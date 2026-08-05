@@ -55,6 +55,9 @@ class FakeSnapshotRepository:
     def save_snapshot(self, snapshot: IndicatorSnapshot) -> None:
         self.saved.append(snapshot)
 
+    def save_snapshots(self, snapshots: list[IndicatorSnapshot]) -> None:
+        self.saved.extend(snapshots)
+
 
 def test_backfill_saves_every_historical_snapshot_per_ticker():
     histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}

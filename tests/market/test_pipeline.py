@@ -61,9 +61,9 @@ class FakeCommentaryClient:
 
 
 class FakeSnapshotRepository:
-    def __init__(self, fail_on_save: bool = False, has_snapshots: bool = True):
+    def __init__(self, fail_on_save: bool = False, existing_tickers: set[str] = frozenset()):
         self._fail_on_save = fail_on_save
-        self._has_snapshots = has_snapshots
+        self._existing_tickers = existing_tickers
         self.saved: list[IndicatorSnapshot] = []
         self.schema_ensured = False
 
@@ -75,13 +75,18 @@ class FakeSnapshotRepository:
             raise ConnectionError("Postgres unreachable")
         self.saved.append(snapshot)
 
-    def has_any_snapshots(self) -> bool:
-        return self._has_snapshots
+    def save_snapshots(self, snapshots: list[IndicatorSnapshot]) -> None:
+        if self._fail_on_save:
+            raise ConnectionError("Postgres unreachable")
+        self.saved.extend(snapshots)
+
+    def get_tickers_with_snapshots(self) -> set[str]:
+        return self._existing_tickers
 
 
 def test_per_ticker_indicator_failure_is_skipped_not_fatal():
     histories = {"AAPL": pd.DataFrame(), "BADCO": pd.DataFrame()}
-    repository = FakeSnapshotRepository()
+    repository = FakeSnapshotRepository(existing_tickers={"AAPL", "BADCO"})
 
     pipeline.run(
         market_data=FakeMarketDataClient(histories),
@@ -95,7 +100,7 @@ def test_per_ticker_indicator_failure_is_skipped_not_fatal():
 
 def test_backfills_from_fetched_history_when_no_snapshots_exist():
     histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
-    repository = FakeSnapshotRepository(has_snapshots=False)
+    repository = FakeSnapshotRepository(existing_tickers=set())
 
     pipeline.run(
         market_data=FakeMarketDataClient(histories),
@@ -107,6 +112,24 @@ def test_backfills_from_fetched_history_when_no_snapshots_exist():
     # 2 backfilled rows per ticker from compute_indicator_history(), plus 1 today's row from compute_indicators().
     assert len([s for s in repository.saved if s.ticker == "AAPL"]) == 3
     assert len([s for s in repository.saved if s.ticker == "MSFT"]) == 3
+
+
+def test_backfills_only_tickers_missing_snapshots():
+    histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame(), "NEWCO": pd.DataFrame()}
+    repository = FakeSnapshotRepository(existing_tickers={"AAPL", "MSFT"})
+
+    pipeline.run(
+        market_data=FakeMarketDataClient(histories),
+        engine=FakeIndicatorEngine(),
+        commentary_client=FakeCommentaryClient(),
+        repository=repository,
+    )
+
+    # AAPL and MSFT already have history, so only today's row is saved for them.
+    assert len([s for s in repository.saved if s.ticker == "AAPL"]) == 1
+    assert len([s for s in repository.saved if s.ticker == "MSFT"]) == 1
+    # NEWCO has no snapshots yet, so it gets backfilled (2 rows) plus today's row.
+    assert len([s for s in repository.saved if s.ticker == "NEWCO"]) == 3
 
 
 def test_no_price_history_at_all_raises_pipeline_failed_error():
@@ -123,7 +146,7 @@ def test_no_price_history_at_all_raises_pipeline_failed_error():
 
 def test_repository_failure_propagates_and_aborts_run():
     histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
-    repository = FakeSnapshotRepository(fail_on_save=True)
+    repository = FakeSnapshotRepository(fail_on_save=True, existing_tickers={"AAPL", "MSFT"})
 
     with pytest.raises(ConnectionError):
         pipeline.run(
@@ -136,7 +159,7 @@ def test_repository_failure_propagates_and_aborts_run():
 
 def test_flagged_tickers_get_commentary_persisted_on_snapshot():
     histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
-    repository = FakeSnapshotRepository()
+    repository = FakeSnapshotRepository(existing_tickers={"AAPL", "MSFT"})
     commentary_client = FakeCommentaryClient()
 
     pipeline.run(
@@ -154,7 +177,7 @@ def test_flagged_tickers_get_commentary_persisted_on_snapshot():
 
 def test_commentary_failure_is_skipped_not_fatal():
     histories = {"AAPL": pd.DataFrame(), "MSFT": pd.DataFrame()}
-    repository = FakeSnapshotRepository()
+    repository = FakeSnapshotRepository(existing_tickers={"AAPL", "MSFT"})
     commentary_client = FakeCommentaryClient(failing_tickers={"AAPL"})
 
     pipeline.run(
@@ -172,7 +195,7 @@ def test_commentary_failure_is_skipped_not_fatal():
 
 def test_unflagged_tickers_are_not_sent_for_commentary():
     histories = {f"T{i}": pd.DataFrame() for i in range(35)}
-    repository = FakeSnapshotRepository()
+    repository = FakeSnapshotRepository(existing_tickers=set(histories))
     commentary_client = FakeCommentaryClient()
 
     pipeline.run(
