@@ -54,6 +54,14 @@ _VERDICT_BADGES = {
     "Insufficient Data": ("⚪", ":material/help:", "gray"),
 }
 
+_BADGE_COLOR_RGB = {
+    "green": (46, 160, 67),
+    "blue": (59, 130, 246),
+    "orange": (245, 158, 11),
+    "red": (226, 59, 59),
+    "gray": (139, 139, 139),
+}
+
 _SENTIMENT_DIRECTION_LABELS = {
     "rising": "📈 Rising",
     "falling": "📉 Falling",
@@ -96,6 +104,75 @@ def render_price_metrics(cols, close: float, momentum_1d, momentum_5d, momentum_
     )
     cols[1].metric("5D", f"{momentum_5d:+.2f}%" if pd.notna(momentum_5d) else "N/A")
     cols[2].metric("20D", f"{momentum_20d:+.2f}%" if pd.notna(momentum_20d) else "N/A")
+
+
+def _colored_metric_card(col, label: str, value: str, is_positive: bool | None, delta: str | None = None) -> None:
+    """Metric card whose background tints green/red by sign, with an optional delta pinned to the right.
+
+    Used by the Watchlist, which (unlike Ticker Detail's render_price_metrics) wants each
+    block color-coded and the Close block's up/down change shown beside the value rather than below it.
+    """
+    if is_positive is None:
+        bg, border = "var(--secondary-background-color)", "rgba(128, 128, 128, 0.25)"
+    elif is_positive:
+        bg, border = "rgba(46, 160, 67, 0.15)", "rgba(46, 160, 67, 0.4)"
+    else:
+        bg, border = "rgba(226, 59, 59, 0.15)", "rgba(226, 59, 59, 0.4)"
+
+    delta_html = ""
+    if delta is not None:
+        arrow = "▲" if is_positive else "▼"
+        delta_color = "#2ea043" if is_positive else "#e23b3b"
+        delta_html = f'<div style="color:{delta_color}; font-weight:600; font-size:0.95rem;">{arrow} {delta}</div>'
+
+    col.markdown(
+        f"""
+        <div style="display:flex; justify-content:space-between; align-items:center;
+                    background:{bg}; border:1px solid {border}; border-radius:0.75rem;
+                    padding:0.9rem 1.1rem;">
+            <div>
+                <div style="font-size:0.8rem; opacity:0.75;">{label}</div>
+                <div style="font-size:1.5rem; font-weight:600;">{value}</div>
+            </div>
+            {delta_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_watchlist_metrics(cols, close: float, momentum_1d, momentum_5d, momentum_20d) -> None:
+    """Close/5D/20D cards for the Watchlist: color-coded by sign, Close's change shown to the right."""
+    close_positive = bool(momentum_1d >= 0) if pd.notna(momentum_1d) else None
+    _colored_metric_card(
+        cols[0],
+        "Close",
+        f"${close:,.2f}",
+        close_positive,
+        delta=f"{momentum_1d:+.2f}%" if pd.notna(momentum_1d) else None,
+    )
+
+    for col, label, momentum in zip(cols[1:], ("5D", "20D"), (momentum_5d, momentum_20d)):
+        positive = bool(momentum >= 0) if pd.notna(momentum) else None
+        _colored_metric_card(col, label, f"{momentum:+.2f}%" if pd.notna(momentum) else "N/A", positive)
+
+
+def render_verdict_card(col, verdict: str) -> None:
+    """Buy Signal card for the Watchlist, tinted to match the same verdict colors as verdict_badge."""
+    _emoji, _icon, color_name = _VERDICT_BADGES.get(verdict, ("⚪", None, "gray"))
+    r, g, b = _BADGE_COLOR_RGB.get(color_name, _BADGE_COLOR_RGB["gray"])
+    bg, border = f"rgba({r}, {g}, {b}, 0.15)", f"rgba({r}, {g}, {b}, 0.4)"
+
+    col.markdown(
+        f"""
+        <div style="background:{bg}; border:1px solid {border}; border-radius:0.75rem;
+                    padding:0.9rem 1.1rem;">
+            <div style="font-size:0.8rem; opacity:0.75;">Buy Signal</div>
+            <div style="font-size:1.25rem; font-weight:600;">{verdict_label(verdict)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def sentiment_direction_label(direction: str) -> str:
