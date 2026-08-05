@@ -1,5 +1,7 @@
 import streamlit as st
 
+from stocks_research.market import signals
+
 st.title("Glossary")
 st.caption("What the numbers and labels around this app actually mean.")
 
@@ -95,33 +97,33 @@ with st.container(border=True):
     st.markdown("**Entry timing**")
     st.write(
         "A bonus check, not required for a Buy verdict: passes when the trend is healthy and "
-        "Above MA50 % is between -8% and +5%, rewarding a pullback entry over chasing a price "
-        "that's already run far above its 50-day average."
+        f"Above MA50 % is between {signals.PULLBACK_BAND_LOW:.0f}% and +{signals.PULLBACK_BAND_HIGH:.0f}%, "
+        "rewarding a pullback entry over chasing a price that's already run far above its 50-day average."
     )
 
 with st.container(border=True):
     st.markdown("**Valuation**")
     st.write(
-        "Passes when trailing P/E is under 40 and PEG ratio is under 2.0 (when available). "
-        "P/E is price divided by trailing earnings per share; PEG divides P/E by the earnings "
-        "growth rate, so a lower PEG means the price is more reasonable relative to how fast "
-        "earnings are growing."
+        f"Passes when trailing P/E is under {signals.MAX_TRAILING_PE:.0f} and PEG ratio is under "
+        f"{signals.MAX_PEG_RATIO:.1f} (when available). P/E is price divided by trailing earnings "
+        "per share; PEG divides P/E by the earnings growth rate, so a lower PEG means the price is "
+        "more reasonable relative to how fast earnings are growing."
     )
 
 with st.container(border=True):
     st.markdown("**Quality**")
     st.write(
-        "Passes when return on equity is at least 10%, profit margin is positive, "
-        "debt-to-equity is under 200, and earnings growth is non-negative (each only checked "
-        "when the data is available). Together these screen for a durable, profitable business "
-        "rather than a cheap-looking value trap."
+        f"Passes when return on equity is at least {signals.MIN_RETURN_ON_EQUITY:.0%}, profit margin "
+        f"is positive, debt-to-equity is under {signals.MAX_DEBT_TO_EQUITY:.0f}, and earnings growth "
+        "is non-negative (each only checked when the data is available). Together these screen for a "
+        "durable, profitable business rather than a cheap-looking value trap."
     )
 
 with st.container(border=True):
     st.markdown("**Not at the top**")
     st.write(
-        "Passes when the close is more than 5% below its 52-week high -- a simple guard against "
-        "buying a lump sum right at a local peak."
+        f"Passes when the close is more than {signals.NOT_AT_TOP_THRESHOLD:.0f}% below its 52-week "
+        "high -- a simple guard against buying a lump sum right at a local peak."
     )
 
 st.header("Score & flagging")

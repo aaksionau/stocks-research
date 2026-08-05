@@ -58,18 +58,13 @@ else:
         )
         header_cols[4].metric("Score", f"{latest['score']:.2f}" if pd.notna(latest["score"]) else "N/A")
 
+    CHECK_ICON = {True: ":material/check_circle:", False: ":material/cancel:", None: ":material/help:"}
     with st.container(border=True):
         signal = signals.evaluate(latest_snapshot, profile)
         st.markdown("##### Long-Term Buy Signal")
         verdict_badge(signal.verdict)
         for check in signal.checks:
-            if check.passed is None:
-                icon = ":material/help:"
-            elif check.passed:
-                icon = ":material/check_circle:"
-            else:
-                icon = ":material/cancel:"
-            st.markdown(f"{icon} **{check.name}** -- {check.detail}")
+            st.markdown(f"{CHECK_ICON[check.passed]} **{check.name}** -- {check.detail}")
 
     overview_tab, price_tab, indicators_tab, commentary_tab, news_tab = st.tabs(
         ["Company Overview", "Price & Volume", "Indicator History", "AI Commentary", "News Sentiment"]

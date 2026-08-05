@@ -46,11 +46,11 @@ _TREND_BADGES = {
 }
 
 _VERDICT_BADGES = {
-    "Strong Buy": (":material/thumb_up:", "green"),
-    "Buy": (":material/thumb_up:", "blue"),
-    "Hold": (":material/pause_circle:", "orange"),
-    "Avoid": (":material/thumb_down:", "red"),
-    "Insufficient Data": (":material/help:", "gray"),
+    "Strong Buy": ("🟢", ":material/thumb_up:", "green"),
+    "Buy": ("🔵", ":material/thumb_up:", "blue"),
+    "Hold": ("🟡", ":material/pause_circle:", "orange"),
+    "Avoid": ("🔴", ":material/thumb_down:", "red"),
+    "Insufficient Data": ("⚪", ":material/help:", "gray"),
 }
 
 
@@ -66,5 +66,11 @@ def trend_badge(trend: str) -> None:
 
 
 def verdict_badge(verdict: str) -> None:
-    icon, color = _VERDICT_BADGES.get(verdict, (None, "gray"))
+    _emoji, icon, color = _VERDICT_BADGES.get(verdict, ("⚪", None, "gray"))
     st.badge(verdict, icon=icon, color=color)
+
+
+def verdict_label(verdict: str) -> str:
+    """Plain-text emoji + verdict, for contexts (e.g. dataframe cells) that can't render st.badge."""
+    emoji, _icon, _color = _VERDICT_BADGES.get(verdict, ("⚪", None, "gray"))
+    return f"{emoji} {verdict}"

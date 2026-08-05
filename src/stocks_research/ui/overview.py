@@ -5,8 +5,17 @@ from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market import signals
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
+from stocks_research.ui.theme import verdict_label
 
 st.title("Overview")
+
+
+@st.cache_data(ttl=300)
+def _get_all_profiles() -> dict:
+    # Company profiles only change on a (much less frequent) manual pipeline run,
+    # so caching avoids re-querying all ~500 rows on every filter/selection rerun.
+    return CompanyProfileRepository().get_all_profiles()
+
 
 snapshots = SnapshotRepository().get_latest_snapshots()
 
@@ -15,7 +24,7 @@ if not snapshots:
 else:
     st.caption("Latest daily snapshot across your tracked tickers · tap a row to open its drill-down view.")
 
-    profiles = CompanyProfileRepository().get_all_profiles()
+    profiles = _get_all_profiles()
     rows = [
         {**vars(s), "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict} for s in snapshots
     ]
@@ -70,17 +79,10 @@ else:
     )
 
     TREND_ICON = {"bullish": "📈 Bullish", "bearish": "📉 Bearish", "neutral": "➖ Neutral"}
-    VERDICT_ICON = {
-        signals.STRONG_BUY: "🟢 Strong Buy",
-        signals.BUY: "🔵 Buy",
-        signals.HOLD: "🟡 Hold",
-        signals.AVOID: "🔴 Avoid",
-        signals.INSUFFICIENT_DATA: "⚪ Insufficient Data",
-    }
     display_df = df.copy()
     display_df["flagged"] = display_df["flagged"].map({True: "🚩", False: ""})
     display_df["ma_trend"] = display_df["ma_trend"].map(TREND_ICON).fillna(display_df["ma_trend"])
-    display_df["buy_verdict"] = display_df["buy_verdict"].map(VERDICT_ICON).fillna(display_df["buy_verdict"])
+    display_df["buy_verdict"] = display_df["buy_verdict"].apply(verdict_label)
     display_df["volume_ratio"] = display_df["volume_ratio"].apply(
         lambda ratio: f"🔥 {ratio:.2f}" if ratio is not None and ratio >= 2 else ratio
     )

@@ -93,6 +93,10 @@ def _entry_timing(snapshot: IndicatorSnapshot, trend: SignalCheck) -> SignalChec
     return SignalCheck("Entry timing", passed, detail)
 
 
+def _fmt(label: str, value: float | None, spec: str) -> str:
+    return f"{label} {value:{spec}}" if value is not None else f"{label} N/A"
+
+
 def _valuation(profile: CompanyProfile | None) -> SignalCheck:
     if profile is None or (profile.trailing_pe is None and profile.peg_ratio is None):
         return SignalCheck("Valuation", None, "No PE/PEG data available.")
@@ -101,8 +105,8 @@ def _valuation(profile: CompanyProfile | None) -> SignalCheck:
     peg_ok = profile.peg_ratio is None or profile.peg_ratio < MAX_PEG_RATIO
     passed = pe_ok and peg_ok
 
-    pe_text = f"PE {profile.trailing_pe:.1f}" if profile.trailing_pe is not None else "PE N/A"
-    peg_text = f"PEG {profile.peg_ratio:.2f}" if profile.peg_ratio is not None else "PEG N/A"
+    pe_text = _fmt("PE", profile.trailing_pe, ".1f")
+    peg_text = _fmt("PEG", profile.peg_ratio, ".2f")
     return SignalCheck("Valuation", passed, f"{pe_text}, {peg_text}.")
 
 
@@ -122,12 +126,10 @@ def _quality(profile: CompanyProfile | None) -> SignalCheck:
     growth_ok = profile.earnings_growth is None or profile.earnings_growth >= MIN_EARNINGS_GROWTH
     passed = roe_ok and margin_ok and debt_ok and growth_ok
 
-    roe_text = f"ROE {profile.return_on_equity:.0%}" if profile.return_on_equity is not None else "ROE N/A"
-    margin_text = f"margin {profile.profit_margins:.0%}" if profile.profit_margins is not None else "margin N/A"
-    debt_text = f"D/E {profile.debt_to_equity:.0f}" if profile.debt_to_equity is not None else "D/E N/A"
-    growth_text = (
-        f"earnings growth {profile.earnings_growth:+.0%}" if profile.earnings_growth is not None else "growth N/A"
-    )
+    roe_text = _fmt("ROE", profile.return_on_equity, ".0%")
+    margin_text = _fmt("margin", profile.profit_margins, ".0%")
+    debt_text = _fmt("D/E", profile.debt_to_equity, ".0f")
+    growth_text = _fmt("earnings growth", profile.earnings_growth, "+.0%")
     return SignalCheck("Quality", passed, f"{roe_text}, {margin_text}, {debt_text}, {growth_text}.")
 
 
