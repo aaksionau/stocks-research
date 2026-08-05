@@ -1,7 +1,9 @@
 import logging
 from dataclasses import replace
 
+from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.config import TICKERS
+from stocks_research.market import signals
 from stocks_research.market.backfill import backfill_histories
 from stocks_research.market.commentary import CommentaryClient
 from stocks_research.market.data import MarketDataClient
@@ -22,12 +24,14 @@ def run(
     flagger: Flagger | None = None,
     commentary_client: CommentaryClient | None = None,
     repository: SnapshotRepository | None = None,
+    profile_repository: CompanyProfileRepository | None = None,
 ) -> None:
     market_data = market_data or MarketDataClient()
     engine = engine or IndicatorEngine()
     flagger = flagger or Flagger()
     commentary_client = commentary_client or CommentaryClient()
     repository = repository or SnapshotRepository()
+    profile_repository = profile_repository or CompanyProfileRepository()
 
     # Postgres unreachable raises here and aborts the run before any fetching happens.
     repository.ensure_schema()
@@ -57,14 +61,21 @@ def run(
             continue
 
     flagged_scores = {f.ticker: f.score for f in flagger.rank(snapshots)}
+    profiles = profile_repository.get_all_profiles()
 
     saved = 0
     for snapshot in snapshots:
         score = flagged_scores.get(snapshot.ticker)
         flagged = score is not None
 
+        # Momentum/volume-anomaly flags and the fundamentals-driven buy verdict are
+        # orthogonal -- a calm, fundamentally strong ticker near its MA50 can be a
+        # Strong Buy without ever showing up as flagged, so it's included here too.
+        verdict = signals.evaluate(snapshot, profiles.get(snapshot.ticker)).verdict
+        needs_commentary = flagged or verdict == signals.STRONG_BUY
+
         commentary = None
-        if flagged:
+        if needs_commentary:
             try:
                 commentary = commentary_client.generate_commentary(snapshot.ticker, snapshot)
             except Exception:
