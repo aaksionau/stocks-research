@@ -7,9 +7,6 @@ from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.ui.theme import verdict_label
 
-st.title("Overview")
-
-
 @st.cache_data(ttl=300)
 def _get_all_profiles() -> dict:
     # Company profiles only change on a (much less frequent) manual pipeline run,
@@ -26,7 +23,12 @@ else:
 
     profiles = _get_all_profiles()
     rows = [
-        {**vars(s), "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict} for s in snapshots
+        {
+            **vars(s),
+            "buy_verdict": signals.evaluate(s, profiles.get(s.ticker)).verdict,
+            "industry": getattr(profiles.get(s.ticker), "industry", None),
+        }
+        for s in snapshots
     ]
     df = pd.DataFrame(rows).sort_values("ticker")
     verdict_options = [signals.STRONG_BUY, signals.BUY, signals.HOLD, signals.AVOID, signals.INSUFFICIENT_DATA]
@@ -51,7 +53,7 @@ else:
     )
 
     with st.container(border=True):
-        filter_cols = st.columns([2, 2, 2])
+        filter_cols = st.columns([2, 2, 2, 2])
         ticker_filter = filter_cols[0].text_input("Filter by ticker", placeholder="e.g. AAPL")
         trend_filter = filter_cols[1].multiselect(
             "Filter by MA trend", options=sorted(df["ma_trend"].unique()), default=[]
@@ -59,6 +61,11 @@ else:
         verdict_filter = filter_cols[2].multiselect(
             "Filter by Buy Signal",
             options=verdict_options,
+            default=[],
+        )
+        industry_filter = filter_cols[3].multiselect(
+            "Filter by industry",
+            options=sorted(df["industry"].dropna().unique()),
             default=[],
         )
         quick_filter = st.segmented_control(
@@ -75,6 +82,8 @@ else:
         df = df[df["ma_trend"].isin(trend_filter)]
     if verdict_filter:
         df = df[df["buy_verdict"].isin(verdict_filter)]
+    if industry_filter:
+        df = df[df["industry"].isin(industry_filter)]
     if quick_filter == "Buy candidates":
         df = df[df["buy_verdict"].isin([signals.STRONG_BUY, signals.BUY])]
     elif quick_filter == "Strong Buy only":
@@ -120,6 +129,7 @@ else:
         hide_index=True,
         column_order=[
             "ticker",
+            "industry",
             "buy_verdict",
             "flagged",
             "score",
@@ -132,6 +142,7 @@ else:
         ],
         column_config={
             "ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"ticker=(\w+)"),
+            "industry": st.column_config.TextColumn("Industry"),
             "buy_verdict": st.column_config.TextColumn(
                 "Buy Signal", help="Rule-based long-term buy/avoid verdict -- see Ticker Detail for the checks."
             ),
