@@ -107,7 +107,9 @@ Set via environment variables or `.env` (see `.env.example`):
 | `FOUNDRY_DEPLOYMENT` | Model deployment name (default `gpt-4o-mini`) |
 | `FOUNDRY_API_VERSION` | Azure OpenAI API version |
 | `FINNHUB_API_KEY` | [Finnhub](https://finnhub.io) API key for news fetching |
-| `NEWS_TICKERS` | Comma-separated news watchlist (default `AAPL,MSFT,GOOGL,AMZN,NVDA`) — smaller than the full S&P 500 universe |
+
+News fetching runs only for tickers subscribed via the "Track news" toggle on the Ticker
+Detail page (stored in the `news_subscriptions` table) — not the full S&P 500 universe.
 
 Without `FOUNDRY_*` credentials, the pipeline still runs — commentary generation for
 flagged tickers just fails per-ticker and is logged, not fatal to the run.

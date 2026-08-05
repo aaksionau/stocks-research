@@ -26,6 +26,9 @@ else:
     df = pd.DataFrame([vars(s) for s in history]).sort_values("date")
     latest = df.iloc[-1]
 
+    news_repository = NewsRepository()
+    is_subscribed = ticker in news_repository.get_subscribed_tickers()
+
     with st.container(border=True):
         header_cols = st.columns([2, 1.2, 1, 1, 1])
         with header_cols[0]:
@@ -33,6 +36,13 @@ else:
             trend_badge(latest["ma_trend"])
             if latest["flagged"]:
                 st.badge("Flagged", icon=":material/flag:", color="orange")
+            track_news = st.toggle("📰 Track news", value=is_subscribed, key=f"news_toggle_{ticker}")
+            if track_news != is_subscribed:
+                if track_news:
+                    news_repository.subscribe(ticker)
+                else:
+                    news_repository.unsubscribe(ticker)
+                st.rerun()
         header_cols[1].metric(
             "Close",
             f"${latest['close']:,.2f}",
@@ -135,13 +145,16 @@ else:
                     st.write(row["commentary"])
 
     with news_tab:
-        articles = NewsRepository().get_scored_articles(ticker)
+        articles = news_repository.get_scored_articles(ticker)
 
         if not articles:
-            st.info(
-                "No scored news articles yet for this ticker. Run the pipeline first: "
-                "`uv run python -m stocks_research.news.pipeline`"
-            )
+            if not is_subscribed:
+                st.info("Not tracking this ticker yet -- toggle \"Track news\" above to include it in news fetching.")
+            else:
+                st.info(
+                    "No scored news articles yet for this ticker. Run the pipeline first: "
+                    "`uv run python -m stocks_research.news.pipeline`"
+                )
         else:
             available_days = len({a.published_at.date() for a in articles})
             if available_days <= 1:

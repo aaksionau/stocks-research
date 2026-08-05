@@ -42,13 +42,17 @@ class FakeNewsSentimentClient:
 class FakeNewsRepository:
     """Fake standing in for Postgres: fetched articles land straight in `saved_articles`, mirroring the real repo."""
 
-    def __init__(self):
+    def __init__(self, subscribed_tickers: list[str] | None = None):
         self.saved_articles: list[NewsArticle] = []
         self.saved_scores: list[NewsArticle] = []
         self.schema_ensured = False
+        self._subscribed_tickers = subscribed_tickers if subscribed_tickers is not None else ["AAPL", "MSFT"]
 
     def ensure_schema(self) -> None:
         self.schema_ensured = True
+
+    def get_subscribed_tickers(self) -> list[str]:
+        return self._subscribed_tickers
 
     def save_articles(self, articles: list[NewsArticle]) -> None:
         self.saved_articles.extend(articles)
@@ -75,9 +79,9 @@ def test_run_ensures_schema_before_fetching():
     assert repository.schema_ensured is True
 
 
-def test_run_fetches_and_saves_articles_for_configured_watchlist():
+def test_run_fetches_and_saves_articles_for_subscribed_tickers():
     articles = [make_article("AAPL"), make_article("MSFT")]
-    repository = FakeNewsRepository()
+    repository = FakeNewsRepository(subscribed_tickers=["AAPL", "MSFT"])
     news_client = FakeNewsClient(articles)
 
     news_pipeline.run(
@@ -88,6 +92,24 @@ def test_run_fetches_and_saves_articles_for_configured_watchlist():
 
     assert repository.saved_articles == articles
     assert len(news_client.calls) == 1
+    assert news_client.calls[0][0] == ["AAPL", "MSFT"]
+
+
+def test_run_with_no_subscribed_tickers_skips_fetch():
+    repository = FakeNewsRepository(subscribed_tickers=[])
+    news_client = FakeNewsClient([make_article("AAPL")])
+    sentiment_client = FakeNewsSentimentClient()
+
+    news_pipeline.run(
+        news_client=news_client,
+        sentiment_client=sentiment_client,
+        repository=repository,
+    )
+
+    assert repository.schema_ensured is True
+    assert news_client.calls == []
+    assert repository.saved_articles == []
+    assert sentiment_client.calls == []
 
 
 def test_run_scores_newly_fetched_articles_in_a_single_batched_call():

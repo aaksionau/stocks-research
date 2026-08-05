@@ -2,10 +2,12 @@ import pandas as pd
 import streamlit as st
 
 from stocks_research.market.repository import SnapshotRepository
+from stocks_research.news.repository import NewsRepository
 
 st.title("Overview")
 
 snapshots = SnapshotRepository().get_latest_snapshots()
+news_subscription_count = len(NewsRepository().get_subscribed_tickers())
 
 if not snapshots:
     st.info("No snapshots yet. Run the pipeline first: `uv run python -m stocks_research.market.pipeline`")
@@ -15,11 +17,16 @@ else:
     df = pd.DataFrame([vars(s) for s in snapshots]).sort_values("ticker")
     trend_counts = df["ma_trend"].value_counts()
 
-    kpi_cols = st.columns(4)
+    kpi_cols = st.columns(5)
     kpi_cols[0].metric("Tickers Tracked", len(df))
     kpi_cols[1].metric("Flagged", int(df["flagged"].sum()))
     kpi_cols[2].metric("Bullish", int(trend_counts.get("bullish", 0)))
     kpi_cols[3].metric("Bearish", int(trend_counts.get("bearish", 0)))
+    kpi_cols[4].metric(
+        "News Tracked",
+        news_subscription_count,
+        help="Tickers subscribed for news sentiment fetching -- keeps an eye on API spend.",
+    )
 
     with st.container(border=True):
         filter_cols = st.columns([2, 2])

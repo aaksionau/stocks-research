@@ -2,7 +2,6 @@ import logging
 from dataclasses import replace
 from datetime import date, timedelta
 
-from stocks_research.config import NEWS_TICKERS
 from stocks_research.news.data import NewsClient
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.sentiment import NewsSentimentClient
@@ -24,14 +23,19 @@ def run(
     # Postgres unreachable raises here and aborts the run before any fetching happens.
     repository.ensure_schema()
 
+    tickers = repository.get_subscribed_tickers()
+    if not tickers:
+        logger.info("No tickers subscribed for news tracking; skipping fetch.")
+        return
+
     to_date = date.today()
     from_date = to_date - timedelta(days=LOOKBACK_DAYS)
 
     # Per-ticker fetch failures are logged and skipped inside NewsClient, not fatal here.
-    articles = news_client.fetch_news(NEWS_TICKERS, from_date, to_date)
+    articles = news_client.fetch_news(tickers, from_date, to_date)
     repository.save_articles(articles)
     logger.info(
-        "News fetch complete: saved %d articles for %d tickers", len(articles), len(NEWS_TICKERS)
+        "News fetch complete: saved %d articles for %d tickers", len(articles), len(tickers)
     )
 
     _score_unscored_articles(sentiment_client, repository)
