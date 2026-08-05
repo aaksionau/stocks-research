@@ -133,6 +133,25 @@ def test_no_profile_leaves_valuation_and_quality_undecidable():
     assert checks["Quality"].passed is None
 
 
+def test_no_profile_caps_verdict_at_hold_even_with_perfect_technicals():
+    # Trend, entry timing, and not-at-top all pass, but with no profile at all Valuation and
+    # Quality are both undecidable -- the verdict shouldn't reach Buy/Strong Buy on price action alone.
+    signal = signals.evaluate(build_snapshot(), None)
+
+    assert signal.verdict == signals.HOLD
+
+
+def test_one_missing_fundamentals_check_caps_verdict_at_hold():
+    # Quality is decidable and passing, but Valuation is undecidable (no PE/PEG at all) --
+    # fundamentals aren't fully grounded, so this shouldn't reach Buy/Strong Buy either.
+    profile = build_profile(trailing_pe=None, peg_ratio=None)
+    signal = signals.evaluate(build_snapshot(), profile)
+
+    checks = checks_by_name(signal)
+    assert checks["Valuation"].passed is None
+    assert signal.verdict == signals.HOLD
+
+
 def test_near_52w_high_fails_not_at_top():
     signal = signals.evaluate(build_snapshot(pct_below_52w_high=1.0), build_profile())
 

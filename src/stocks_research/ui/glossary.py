@@ -86,7 +86,9 @@ with st.container(border=True):
         "checks that could actually be decided: all four passing plus good Entry timing is "
         "**Strong Buy**, 75%+ is **Buy**, 50%+ is **Hold**, otherwise **Avoid**. If fewer than "
         "two of the four core checks have enough data to decide, the verdict is "
-        "**Insufficient Data** instead."
+        "**Insufficient Data** instead. Verdicts cap at **Hold** whenever Valuation or Quality "
+        "couldn't be decided (e.g. no company profile data yet) -- price action alone isn't "
+        "grounds for a Buy on a multi-year-hold thesis."
     )
 
 with st.container(border=True):

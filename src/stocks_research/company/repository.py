@@ -52,6 +52,10 @@ INSERT INTO company_profiles (
     %(trailing_pe)s, %(forward_pe)s, %(peg_ratio)s, %(price_to_book)s, %(return_on_equity)s,
     %(profit_margins)s, %(debt_to_equity)s, %(earnings_growth)s, %(revenue_growth)s, now()
 )
+-- Financial-ratio fields (trailing_pe onward) use COALESCE(new, old) rather than a blind
+-- overwrite: Yahoo has been observed returning descriptive fields (name/sector/market_cap)
+-- while silently dropping the financial-ratio ones under load, and a blind overwrite would
+-- let that transient gap erase previously-good data instead of just failing to refresh it.
 ON CONFLICT (ticker) DO UPDATE SET
     name = EXCLUDED.name,
     sector = EXCLUDED.sector,
@@ -62,15 +66,15 @@ ON CONFLICT (ticker) DO UPDATE SET
     country = EXCLUDED.country,
     exchange = EXCLUDED.exchange,
     market_cap = EXCLUDED.market_cap,
-    trailing_pe = EXCLUDED.trailing_pe,
-    forward_pe = EXCLUDED.forward_pe,
-    peg_ratio = EXCLUDED.peg_ratio,
-    price_to_book = EXCLUDED.price_to_book,
-    return_on_equity = EXCLUDED.return_on_equity,
-    profit_margins = EXCLUDED.profit_margins,
-    debt_to_equity = EXCLUDED.debt_to_equity,
-    earnings_growth = EXCLUDED.earnings_growth,
-    revenue_growth = EXCLUDED.revenue_growth,
+    trailing_pe = COALESCE(EXCLUDED.trailing_pe, company_profiles.trailing_pe),
+    forward_pe = COALESCE(EXCLUDED.forward_pe, company_profiles.forward_pe),
+    peg_ratio = COALESCE(EXCLUDED.peg_ratio, company_profiles.peg_ratio),
+    price_to_book = COALESCE(EXCLUDED.price_to_book, company_profiles.price_to_book),
+    return_on_equity = COALESCE(EXCLUDED.return_on_equity, company_profiles.return_on_equity),
+    profit_margins = COALESCE(EXCLUDED.profit_margins, company_profiles.profit_margins),
+    debt_to_equity = COALESCE(EXCLUDED.debt_to_equity, company_profiles.debt_to_equity),
+    earnings_growth = COALESCE(EXCLUDED.earnings_growth, company_profiles.earnings_growth),
+    revenue_growth = COALESCE(EXCLUDED.revenue_growth, company_profiles.revenue_growth),
     updated_at = now()
 """
 

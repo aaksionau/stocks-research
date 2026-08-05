@@ -13,6 +13,12 @@ class FakeYfTicker:
             raise ConnectionError("network unreachable")
         if self.symbol == "EMPTY":
             return {}
+        if self.symbol == "PARTIAL":
+            return {
+                "longName": "Partial Corp.",
+                "sector": "Technology",
+                "marketCap": 1_000_000_000,
+            }
         return {
             "longName": "Apple Inc.",
             "sector": "Technology",
@@ -81,3 +87,13 @@ def test_all_tickers_failing_returns_empty_dict():
     profiles = CompanyProfileClient().fetch_profiles(["RAISES", "EMPTY"])
 
     assert profiles == {}
+
+
+def test_partial_info_is_still_saved_but_warns(caplog):
+    with caplog.at_level("WARNING"):
+        profiles = CompanyProfileClient().fetch_profiles(["PARTIAL"])
+
+    profile = profiles["PARTIAL"]
+    assert profile.name == "Partial Corp."
+    assert profile.trailing_pe is None
+    assert "no financial ratios" in caplog.text

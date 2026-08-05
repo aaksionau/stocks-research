@@ -50,7 +50,7 @@ def evaluate(snapshot: IndicatorSnapshot, profile: CompanyProfile | None) -> Lon
     not_at_top = _not_at_top(snapshot)
 
     core_checks = [trend, valuation, quality, not_at_top]
-    verdict = _verdict(core_checks, entry_timing)
+    verdict = _verdict(core_checks, entry_timing, valuation, quality)
 
     return LongTermBuySignal(
         ticker=snapshot.ticker,
@@ -59,12 +59,22 @@ def evaluate(snapshot: IndicatorSnapshot, profile: CompanyProfile | None) -> Lon
     )
 
 
-def _verdict(core_checks: list[SignalCheck], entry_timing: SignalCheck) -> str:
+def _verdict(
+    core_checks: list[SignalCheck], entry_timing: SignalCheck, valuation: SignalCheck, quality: SignalCheck
+) -> str:
     decidable = [c for c in core_checks if c.passed is not None]
     if len(decidable) < MIN_DECIDABLE_CHECKS:
         return INSUFFICIENT_DATA
 
     ratio = sum(1 for c in decidable if c.passed) / len(decidable)
+
+    # A ticker's profile (PE/PEG/ROE/margins/...) can fail to fetch -- e.g. Yahoo has been observed
+    # silently returning descriptive fields without the financial ones under load -- leaving trend
+    # and not-at-top (pure price action) as the only decidable checks. Price action alone isn't a
+    # basis for a "Buy" on a multi-year-hold thesis, so cap at Hold until fundamentals are grounded.
+    fundamentals_grounded = valuation.passed is not None and quality.passed is not None
+    if not fundamentals_grounded:
+        return HOLD if ratio >= 0.5 else AVOID
 
     if ratio == 1.0 and entry_timing.passed:
         return STRONG_BUY
