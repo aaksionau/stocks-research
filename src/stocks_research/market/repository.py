@@ -8,13 +8,17 @@ from stocks_research.market.indicators import IndicatorSnapshot
 
 
 @dataclass(frozen=True)
-class TrendFlagRow:
-    """Slice of a snapshot needed for trend aggregation, without the full indicator payload."""
+class TrendIndicatorRow:
+    """Slice of a snapshot needed to recompute a Buy Signal verdict, without the full indicator payload."""
 
     ticker: str
     date: date_type
-    score: float | None
-    flagged: bool
+    close: float
+    ma_200: float | None
+    ma_trend: str
+    pct_above_ma50: float | None
+    pct_below_52w_high: float | None
+
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS indicator_snapshots (
@@ -110,11 +114,11 @@ TICKERS_WITH_SNAPSHOTS_SQL = "SELECT DISTINCT ticker FROM indicator_snapshots"
 
 DISTINCT_DATE_COUNT_SQL = "SELECT COUNT(DISTINCT date) FROM indicator_snapshots"
 
-RECENT_FLAG_ROWS_SQL = """
+RECENT_INDICATOR_ROWS_SQL = """
 WITH recent_dates AS (
     SELECT DISTINCT date FROM indicator_snapshots ORDER BY date DESC LIMIT %(days)s
 )
-SELECT ticker, date, score, flagged
+SELECT ticker, date, close, ma_200, ma_trend, pct_above_ma50, pct_below_52w_high
 FROM indicator_snapshots
 WHERE date IN (SELECT date FROM recent_dates)
 ORDER BY date DESC, ticker ASC
@@ -165,18 +169,27 @@ class SnapshotRepository:
             row = conn.execute(DISTINCT_DATE_COUNT_SQL).fetchone()
         return row[0] if row else 0
 
-    def get_recent_flag_rows(self, days: int) -> list[TrendFlagRow]:
-        """Ticker/date/score/flagged for the most recent `days` distinct dates present.
+    def get_recent_indicator_rows(self, days: int) -> list[TrendIndicatorRow]:
+        """Ticker/date plus the fields `signals.evaluate()` needs, for the most recent `days` dates present.
 
-        Used by the Trends page, which only needs these four columns -- selecting the
-        full snapshot for every ticker/day in the table takes over a minute once the
+        Used by the Trends page, which recomputes a Buy Signal verdict per row -- selecting
+        the full snapshot for every ticker/day in the table takes over a minute once the
         history spans a year-plus of daily runs across hundreds of tickers.
         """
         with psycopg.connect(self._database_url) as conn:
-            rows = conn.execute(RECENT_FLAG_ROWS_SQL, {"days": days}).fetchall()
+            rows = conn.execute(RECENT_INDICATOR_ROWS_SQL, {"days": days}).fetchall()
+        as_float = lambda value: None if value is None else float(value)
         return [
-            TrendFlagRow(ticker=ticker, date=row_date, score=None if score is None else float(score), flagged=flagged)
-            for ticker, row_date, score, flagged in rows
+            TrendIndicatorRow(
+                ticker=ticker,
+                date=row_date,
+                close=float(close),
+                ma_200=as_float(ma_200),
+                ma_trend=ma_trend,
+                pct_above_ma50=as_float(pct_above_ma50),
+                pct_below_52w_high=as_float(pct_below_52w_high),
+            )
+            for ticker, row_date, close, ma_200, ma_trend, pct_above_ma50, pct_below_52w_high in rows
         ]
 
     @staticmethod
