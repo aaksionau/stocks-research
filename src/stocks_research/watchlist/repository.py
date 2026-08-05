@@ -27,10 +27,6 @@ FOLLOWED_TICKERS_SQL = """
 SELECT ticker FROM watchlist ORDER BY ticker
 """
 
-FOLLOWED_TICKER_COUNT_SQL = """
-SELECT count(*) FROM watchlist
-"""
-
 
 class WatchlistRepository:
     def __init__(self, database_url: str = DATABASE_URL):
@@ -57,8 +53,3 @@ class WatchlistRepository:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(FOLLOWED_TICKERS_SQL).fetchall()
         return [row[0] for row in rows]
-
-    def get_followed_ticker_count(self) -> int:
-        with psycopg.connect(self._database_url) as conn:
-            row = conn.execute(FOLLOWED_TICKER_COUNT_SQL).fetchone()
-        return row[0]

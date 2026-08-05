@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 
 APP_TITLE = "Stocks Research"
@@ -80,6 +81,21 @@ def verdict_label(verdict: str) -> str:
     """Plain-text emoji + verdict, for contexts (e.g. dataframe cells) that can't render st.badge."""
     emoji, _icon, _color = _VERDICT_BADGES.get(verdict, ("⚪", None, "gray"))
     return f"{emoji} {verdict}"
+
+
+def render_price_metrics(cols, close: float, momentum_1d, momentum_5d, momentum_20d) -> None:
+    """Close/5D/20D metric tiles shared by Ticker Detail's header and the Watchlist cards.
+
+    Momentum args accept None or NaN (pd.notna handles both) since callers source them
+    from either a DataFrame row or an IndicatorSnapshot dataclass.
+    """
+    cols[0].metric(
+        "Close",
+        f"${close:,.2f}",
+        delta=f"{momentum_1d:+.2f}%" if pd.notna(momentum_1d) else None,
+    )
+    cols[1].metric("5D", f"{momentum_5d:+.2f}%" if pd.notna(momentum_5d) else "N/A")
+    cols[2].metric("20D", f"{momentum_20d:+.2f}%" if pd.notna(momentum_20d) else "N/A")
 
 
 def sentiment_direction_label(direction: str) -> str:

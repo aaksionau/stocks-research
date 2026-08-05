@@ -9,6 +9,7 @@ from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.news.trends import summarize_ticker_trend, windowed_articles
 from stocks_research.ui.news_widgets import days_window_slider
 from stocks_research.ui.theme import (
+    render_price_metrics,
     sentiment_direction_label,
     trend_badge,
     verdict_badge,
@@ -52,21 +53,12 @@ else:
             following = st.toggle("⭐ Follow", value=is_following, key=f"follow_toggle_{ticker}")
             if following != is_following:
                 (watchlist_repository.follow if following else watchlist_repository.unfollow)(ticker)
-                is_following = following
             track_news = st.toggle("📰 Track news", value=is_subscribed, key=f"news_toggle_{ticker}")
             if track_news != is_subscribed:
                 (subscription_repository.subscribe if track_news else subscription_repository.unsubscribe)(ticker)
                 is_subscribed = track_news
-        header_cols[1].metric(
-            "Close",
-            f"${latest['close']:,.2f}",
-            delta=f"{latest['momentum_1d']:+.2f}%" if pd.notna(latest["momentum_1d"]) else None,
-        )
-        header_cols[2].metric(
-            "5D", f"{latest['momentum_5d']:+.2f}%" if pd.notna(latest["momentum_5d"]) else "N/A"
-        )
-        header_cols[3].metric(
-            "20D", f"{latest['momentum_20d']:+.2f}%" if pd.notna(latest["momentum_20d"]) else "N/A"
+        render_price_metrics(
+            header_cols[1:4], latest["close"], latest["momentum_1d"], latest["momentum_5d"], latest["momentum_20d"]
         )
         header_cols[4].metric("Score", f"{latest['score']:.2f}" if pd.notna(latest["score"]) else "N/A")
 
