@@ -11,6 +11,12 @@ SYSTEM_PROMPT = (
     "numbers, one score per headline, in the same order as the headlines -- no other text."
 )
 
+# Backlog days (e.g. after an outage) can pile up hundreds of headlines for one ticker/day.
+# A single request that large risks the response being cut off at the model's output token
+# limit, which surfaces as a JSONDecodeError on a truncated array -- chunking keeps each
+# request's output well within that limit.
+MAX_HEADLINES_PER_REQUEST = 40
+
 
 class NewsSentimentClient:
     """Wraps the Azure AI Foundry gpt-4o-mini deployment to batch-score a ticker's headlines for a day."""
@@ -29,6 +35,13 @@ class NewsSentimentClient:
         if not headlines:
             return []
 
+        scores: list[float] = []
+        for start in range(0, len(headlines), MAX_HEADLINES_PER_REQUEST):
+            batch = headlines[start : start + MAX_HEADLINES_PER_REQUEST]
+            scores.extend(self._score_batch(ticker, batch))
+        return scores
+
+    def _score_batch(self, ticker: str, headlines: list[str]) -> list[float]:
         response = self._client.chat.completions.create(
             model=self._deployment,
             temperature=0,
@@ -37,7 +50,13 @@ class NewsSentimentClient:
                 {"role": "user", "content": self._describe(ticker, headlines)},
             ],
         )
-        content = self._strip_code_fence(response.choices[0].message.content.strip())
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            raise ValueError(
+                f"Sentiment response for {ticker} was truncated at the model's output token "
+                f"limit ({len(headlines)} headlines in this batch); lower MAX_HEADLINES_PER_REQUEST"
+            )
+        content = self._strip_code_fence(choice.message.content.strip())
 
         try:
             scores = json.loads(content)

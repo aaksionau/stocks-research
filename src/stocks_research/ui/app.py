@@ -3,6 +3,7 @@ import streamlit as st
 from stocks_research.company.repository import CompanyProfileRepository
 from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
+from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.ui.theme import configure_app
 
 configure_app()
@@ -16,6 +17,7 @@ def _ensure_schema() -> None:
     # hard-crash a page with UndefinedTable instead of showing "no data yet".
     SnapshotRepository().ensure_schema()
     NewsRepository().ensure_schema()
+    NewsSubscriptionRepository().ensure_schema()
     CompanyProfileRepository().ensure_schema()
 
 
