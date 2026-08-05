@@ -101,6 +101,16 @@ WHERE ticker = %(ticker)s
 ORDER BY date ASC
 """
 
+TICKER_HISTORIES_SQL = """
+SELECT
+    ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
+    ma_50, ma_200, ma_trend, pct_above_ma50, volume, volume_avg_20, volume_ratio,
+    high_52w, pct_below_52w_high, score, flagged, commentary
+FROM indicator_snapshots
+WHERE ticker = ANY(%(tickers)s)
+ORDER BY ticker ASC, date ASC
+"""
+
 ALL_SNAPSHOTS_SQL = """
 SELECT
     ticker, date, close, momentum_1d, momentum_5d, momentum_20d,
@@ -153,6 +163,16 @@ class SnapshotRepository:
         with psycopg.connect(self._database_url) as conn:
             rows = conn.execute(TICKER_HISTORY_SQL, {"ticker": ticker}).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
+
+    def get_ticker_histories(self, tickers: list[str]) -> dict[str, list[IndicatorSnapshot]]:
+        """Full history for each of the given tickers, in a single round-trip."""
+        with psycopg.connect(self._database_url) as conn:
+            rows = conn.execute(TICKER_HISTORIES_SQL, {"tickers": tickers}).fetchall()
+        histories: dict[str, list[IndicatorSnapshot]] = {ticker: [] for ticker in tickers}
+        for row in rows:
+            snapshot = self._row_to_snapshot(row)
+            histories[snapshot.ticker].append(snapshot)
+        return histories
 
     def get_all_snapshots(self) -> list[IndicatorSnapshot]:
         with psycopg.connect(self._database_url) as conn:

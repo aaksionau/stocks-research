@@ -5,6 +5,7 @@ from stocks_research.market.repository import SnapshotRepository
 from stocks_research.news.repository import NewsRepository
 from stocks_research.news.subscriptions import NewsSubscriptionRepository
 from stocks_research.ui.theme import configure_app
+from stocks_research.watchlist.repository import WatchlistRepository
 
 configure_app()
 
@@ -19,15 +20,17 @@ def _ensure_schema() -> None:
     NewsRepository().ensure_schema()
     NewsSubscriptionRepository().ensure_schema()
     CompanyProfileRepository().ensure_schema()
+    WatchlistRepository().ensure_schema()
 
 
 _ensure_schema()
 
 overview = st.Page("overview.py", title="Overview", icon="📊", default=True)
 ticker_detail = st.Page("ticker_detail.py", title="Ticker Detail", icon="🔍")
+watchlist = st.Page("watchlist.py", title="Watchlist", icon="⭐")
 trends = st.Page("trends.py", title="Trends", icon="📈")
 news_trends = st.Page("news_trends.py", title="News Trends", icon="📰")
 glossary = st.Page("glossary.py", title="Glossary", icon="📖")
 
-pg = st.navigation([overview, ticker_detail, trends, news_trends, glossary], position="top")
+pg = st.navigation([overview, ticker_detail, watchlist, trends, news_trends, glossary], position="top")
 pg.run()
